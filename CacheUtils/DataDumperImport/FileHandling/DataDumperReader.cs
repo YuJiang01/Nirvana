@@ -2,7 +2,7 @@
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using VariantAnnotation.FileHandling;
 using ErrorHandling.Exceptions;
 
@@ -37,7 +37,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private readonly Regex _multiLineKeyValueRegex;
         private readonly Regex _objectKeyValueRegex;
         private readonly Regex _openBracesRegex;
-        private readonly Regex _referenceStringKeyRegex;
         private readonly Regex _referenceStringKeyValueRegex;
         private readonly Regex _rootObjectKeyValueRegex;
         private readonly Regex _stringKeyRegex;
@@ -58,7 +57,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
             MultiLineKeyValue,
             ObjectKeyValue,
             OpenBraces,
-            ReferenceStringKey,
             ReferenceStringKeyValue,
             RootObjectKeyValue,
             StringKey,
@@ -116,7 +114,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
             _multiLineKeyValueRegex       = new Regex("'([^']+)' => '([^']+)$",              RegexOptions.Compiled);
             _objectKeyValueRegex          = new Regex("'([^']+)' => (?:bless\\( )?{",        RegexOptions.Compiled);
             _openBracesRegex              = new Regex("bless\\( \\{",                        RegexOptions.Compiled);
-            _referenceStringKeyRegex      = new Regex("^\\s*(\\$VAR\\d+->\\S+?)(?:,?)\\s*$", RegexOptions.Compiled);
             _referenceStringKeyValueRegex = new Regex("'([^']+)' => (\\$VAR\\S+)(?:,?)",     RegexOptions.Compiled);
             _rootObjectKeyValueRegex      = new Regex("\\$VAR\\d = {",                       RegexOptions.Compiled);
             _stringKeyRegex               = new Regex("^\\s*'([^']+)'(?:,?)\\s*$",           RegexOptions.Compiled);
@@ -128,9 +125,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
             {
                 BuildDumperHierarchy();
             }
-
-            // dump the tree
-            // Console.WriteLine(_rootNode);
         }
 
         /// <summary>
@@ -138,8 +132,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
         /// </summary>
         private void BuildDumperHierarchy()
         {
-            // Console.WriteLine("*** BuildDumperHierarchy ***");
-
             // grab the next line
             string line = _reader.ReadLine();
 
@@ -150,7 +142,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
 
             // retrieve the entry type
             EntryType entryType = GetEntryType(line);
-            // Console.WriteLine(entryType);
 
             if (entryType != EntryType.RootObjectKeyValue)
             {
@@ -218,9 +209,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
             var referenceStringMatch = _referenceStringKeyValueRegex.Match(s);
             if (referenceStringMatch.Success) return EntryType.ReferenceStringKeyValue;
 
-            referenceStringMatch = _referenceStringKeyRegex.Match(ws);
-            if (referenceStringMatch.Success) return EntryType.ReferenceStringKey;
-
             // multiLineMatch
             var multiLineMatch = _multiLineKeyValueRegex.Match(s);
             if (multiLineMatch.Success) return EntryType.MultiLineKeyValue;
@@ -241,7 +229,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private StringKeyValue GetBinaryKeyValue(string s)
         {
             var stringMatch = _binaryKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: binary key: {0}", stringMatch.Groups[1].Value);
 
             // keep on reading lines until one ends with a single apostrophe
             while (true)
@@ -267,21 +254,18 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private StringKeyValue GetDigitKeyValue(string s)
         {
             var digitMatch = _digitKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: digit key: {0}, value: {1}", digitMatch.Groups[1].Value, digitMatch.Groups[2].Value);
             return new StringKeyValue(digitMatch.Groups[1].Value, digitMatch.Groups[2].Value);
         }
 
         private StringKeyValue GetEmptyListKeyValue(string s)
         {
             var stringMatch = _emptyListKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: empty list key: {0}", stringMatch.Groups[1].Value);
             return new StringKeyValue(stringMatch.Groups[1].Value, null);
         }
 
         private StringKeyValue GetEmptyValueKeyValue(string s)
         {
             var stringMatch = _emptyValueKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: empty value key: {0}", stringMatch.Groups[1].Value);
             return new StringKeyValue(stringMatch.Groups[1].Value, null);
         }
 
@@ -306,16 +290,12 @@ namespace CacheUtils.DataDumperImport.FileHandling
                 if (ws == EndBracketsTag || ws == EndBracketsTag2) break;
 
                 // retrieve the object type
-                EntryType entryType = GetEntryType(line);
-                // Console.WriteLine(entryType);
+                var entryType = GetEntryType(line);
 
                 switch (entryType)
                 {
                     case EntryType.OpenBraces:
                         listObjectKeyValue.Add(GetObjectValue());
-                        break;
-                    case EntryType.ReferenceStringKey:
-                        listObjectKeyValue.Add(GetReferenceStringValue(line));
                         break;
                     case EntryType.StringKey:
                         listObjectKeyValue.Add(GetStringKey(line));
@@ -324,7 +304,7 @@ namespace CacheUtils.DataDumperImport.FileHandling
                         listObjectKeyValue.Add(GetDigitKey(line));
                         break;
                     default:
-                        throw new GeneralException($"Unhandled entry type encountered: {entryType}");
+                        throw new GeneralException($"Unhandled entry type encountered: {entryType}\n{s}");
                 }
             }
 
@@ -361,7 +341,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private ObjectKeyValue GetObjectKeyValue(string s)
         {
             var objectMatch = _objectKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: object key: {0}", objectMatch.Groups[1].Value);
             return new ObjectKeyValue(objectMatch.Groups[1].Value, GetObjectValue());
         }
 
@@ -383,7 +362,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
 
                 // retrieve the object type
                 EntryType entryType = GetEntryType(line);
-                // Console.WriteLine("--- DEBUG: entryType: {0}", entryType);
 
                 if (entryType == EntryType.EndBraces)
                 {
@@ -391,7 +369,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
                     if (dataTypeMatch.Success)
                     {
                         objectValue.DataType = dataTypeMatch.Groups[1].Value;
-                        // Console.WriteLine("DEBUG: data type: {0}", dataTypeMatch.Groups[1].Value);
                     }
                     break;
                 }
@@ -445,18 +422,7 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private ReferenceKeyValue GetReferenceKeyValue(string s)
         {
             var stringMatch = _referenceStringKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: reference string key: {0}, value: {1}", stringMatch.Groups[1].Value, stringMatch.Groups[2].Value);
             return new ReferenceKeyValue(stringMatch.Groups[1].Value, stringMatch.Groups[2].Value);
-        }
-
-        private ReferenceStringValue GetReferenceStringValue(string s)
-        {
-            var value = new ReferenceStringValue();
-            var stringMatch = _referenceStringKeyRegex.Match(s);
-            // Console.WriteLine("DEBUG: s: [{0}]", s);
-            // Console.WriteLine("DEBUG: reference string key: [{0}]", stringMatch.Groups[1].Value);
-            value.Add(new StringKeyValue(stringMatch.Groups[1].Value, null));
-            return value;
         }
 
         private ReferenceStringValue GetStringKey(string s)
@@ -470,7 +436,6 @@ namespace CacheUtils.DataDumperImport.FileHandling
         private StringKeyValue GetStringKeyValue(string s)
         {
             var stringMatch = _stringKeyValueRegex.Match(s);
-            // Console.WriteLine("DEBUG: string key: {0}, value: {1}", stringMatch.Groups[1].Value, stringMatch.Groups[2].Value);
             return new StringKeyValue(stringMatch.Groups[1].Value, stringMatch.Groups[2].Value);
         }
 

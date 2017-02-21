@@ -1,4 +1,4 @@
-﻿namespace CacheUtils.DataDumperImport.DataStructures
+﻿namespace CacheUtils.DataDumperImport.Parser
 {
     public sealed class FeatureStatistics
     {

@@ -1,4 +1,4 @@
-﻿namespace CacheUtils.DataDumperImport.DataStructures.VEP
+﻿namespace CacheUtils.DataDumperImport.DataStructures
 {
     public class SortableCoordinate
     {

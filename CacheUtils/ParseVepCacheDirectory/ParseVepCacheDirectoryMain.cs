@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using CacheUtils.DataDumperImport.FileHandling;
-using CacheUtils.ParseVepCacheDirectory.PredictionConversion;
 using NDesk.Options;
 using VariantAnnotation.CommandLine;
 using VariantAnnotation.DataStructures;
@@ -116,7 +115,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             var regulatoryPath = ConfigurationSettings.OutputStub + ".regulatory.gz";
             var genePath       = ConfigurationSettings.OutputStub + ".genes.gz";
             var intronPath     = ConfigurationSettings.OutputStub + ".introns.gz";
-            var exonPath       = ConfigurationSettings.OutputStub + ".exons.gz";
             var mirnaPath      = ConfigurationSettings.OutputStub + ".mirnas.gz";
             var siftPath       = ConfigurationSettings.OutputStub + ".sift.dat";
             var polyphenPath   = ConfigurationSettings.OutputStub + ".polyphen.dat";
@@ -127,10 +125,9 @@ namespace CacheUtils.ParseVepCacheDirectory
             using (var regulatoryWriter = GZipUtilities.GetStreamWriter(regulatoryPath))
             using (var geneWriter       = GZipUtilities.GetStreamWriter(genePath))
             using (var intronWriter     = GZipUtilities.GetStreamWriter(intronPath))
-            using (var exonWriter       = GZipUtilities.GetStreamWriter(exonPath))
             using (var mirnaWriter      = GZipUtilities.GetStreamWriter(mirnaPath))
-            using (var siftWriter       = GZipUtilities.GetBinaryWriter(siftPath + ".tmp"))
-            using (var polyphenWriter   = GZipUtilities.GetBinaryWriter(polyphenPath + ".tmp"))
+            using (var siftWriter       = GZipUtilities.GetBinaryWriter(siftPath))
+            using (var polyphenWriter   = GZipUtilities.GetBinaryWriter(polyphenPath))
             using (var cdnaWriter       = GZipUtilities.GetStreamWriter(cdnaPath))
             using (var peptideWriter    = GZipUtilities.GetStreamWriter(peptidePath))
             {
@@ -138,7 +135,6 @@ namespace CacheUtils.ParseVepCacheDirectory
                 regulatoryWriter.NewLine = "\n";
                 geneWriter.NewLine       = "\n";
                 intronWriter.NewLine     = "\n";
-                exonWriter.NewLine       = "\n";
                 mirnaWriter.NewLine      = "\n";
                 cdnaWriter.NewLine       = "\n";
                 peptideWriter.NewLine    = "\n";
@@ -147,7 +143,6 @@ namespace CacheUtils.ParseVepCacheDirectory
                 WriteHeader(regulatoryWriter, GlobalImportCommon.FileType.Regulatory, transcriptSource, genomeAssembly);
                 WriteHeader(geneWriter,       GlobalImportCommon.FileType.Gene,       transcriptSource, genomeAssembly);
                 WriteHeader(intronWriter,     GlobalImportCommon.FileType.Intron,     transcriptSource, genomeAssembly);
-                WriteHeader(exonWriter,       GlobalImportCommon.FileType.Exon,       transcriptSource, genomeAssembly);
                 WriteHeader(mirnaWriter,      GlobalImportCommon.FileType.MicroRna,   transcriptSource, genomeAssembly);
                 WriteHeader(siftWriter,       GlobalImportCommon.FileType.Sift,       transcriptSource, genomeAssembly);
                 WriteHeader(polyphenWriter,   GlobalImportCommon.FileType.PolyPhen,   transcriptSource, genomeAssembly);
@@ -156,28 +151,18 @@ namespace CacheUtils.ParseVepCacheDirectory
 
                 foreach (var refTuple in vepDirectories)
                 {
-                    // DEBUG
-                    //if (refTuple.Item1 != "chr7") continue;
-
                     Console.WriteLine("Parsing reference sequence [{0}]:", refTuple.Item1);
                     numDirectoriesProcessed++;
 
                     var refIndex = referenceIndex.GetIndex(refTuple.Item1);
 
                     converter.ParseDumpDirectory(refIndex, refTuple.Item2, transcriptWriter, regulatoryWriter, geneWriter,
-                        intronWriter, exonWriter, mirnaWriter, siftWriter, polyphenWriter, cdnaWriter, peptideWriter);
+                        intronWriter, mirnaWriter, siftWriter, polyphenWriter, cdnaWriter, peptideWriter);
                 }
             }
 
             Console.WriteLine("\n{0} directories processed.", numDirectoriesProcessed);
-
             converter.DumpStatistics();
-            Console.WriteLine();
-
-            // convert our protein function predictions
-            var predictionConverter = new PredictionConverter(referenceIndex.NumReferenceSeqs);
-            predictionConverter.Convert(siftPath, "SIFT", GlobalImportCommon.FileType.Sift);
-            predictionConverter.Convert(polyphenPath, "PolyPhen", GlobalImportCommon.FileType.PolyPhen);
         }
 
         /// <summary>

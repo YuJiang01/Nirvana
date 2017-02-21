@@ -47,9 +47,9 @@ namespace CacheUtils.CombineCacheDirectories
         /// </summary>
         protected override void ValidateCommandLine()
         {
-            //CheckDirectoryExists(ConfigurationSettings.InputPrefix, "input cache", "--in");
-            //CheckDirectoryExists(ConfigurationSettings.InputPrefix2, "input cache 2", "--in2");
-            //CheckDirectoryExists(ConfigurationSettings.OutputPrefix, "output cache", "--out");
+            HasRequiredParameter(ConfigurationSettings.InputPrefix, "input cache", "--in");
+            HasRequiredParameter(ConfigurationSettings.InputPrefix2, "input cache 2", "--in2");
+            HasRequiredParameter(ConfigurationSettings.OutputPrefix, "output cache", "--out");
         }
 
         /// <summary>

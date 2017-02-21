@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using CacheUtils.CombineAndUpdateGenes.DataStructures;
-using CacheUtils.CombineAndUpdateGenes.FileHandling;
 using CacheUtils.CreateCache.Algorithms;
 using CacheUtils.CreateCache.FileHandling;
 using VariantAnnotation.DataStructures.IntervalSearch;
@@ -22,7 +21,6 @@ namespace CacheUtils.CreateCache
 
         private readonly VepTranscriptReader _transcriptReader;
         private readonly IVepReader<VD.RegulatoryElement> _regulatoryReader;
-        private readonly IVepReader<MutableGene> _geneReader;
         private readonly IVepReader<MutableGene> _mergedGeneReader;
         private readonly IVepReader<VD.SimpleInterval> _intronReader;
         private readonly IVepReader<VD.SimpleInterval> _microRnaReader;
@@ -30,7 +28,6 @@ namespace CacheUtils.CreateCache
 
         private readonly List<VD.Transcript> _transcripts;
         private readonly List<VD.RegulatoryElement> _regulatoryElements;
-        private readonly List<MutableGene> _genes;
         private readonly List<MutableGene> _mergedGenes;
         private readonly List<VD.SimpleInterval> _introns;
         private readonly List<VD.SimpleInterval> _microRnas;
@@ -46,13 +43,11 @@ namespace CacheUtils.CreateCache
         /// <summary>
         /// constructor
         /// </summary>
-        public NirvanaDatabaseCreator(VepTranscriptReader transcriptReader, VepRegulatoryReader regulatoryReader,
-            VepGeneReader geneReader, VepCombinedGeneReader mergedGeneReader, VepSimpleIntervalReader intronReader,
+        public NirvanaDatabaseCreator(VepTranscriptReader transcriptReader, VepRegulatoryReader regulatoryReader, VepCombinedGeneReader mergedGeneReader, VepSimpleIntervalReader intronReader,
             VepSimpleIntervalReader mirnaReader, VepSequenceReader peptideReader, ChromosomeRenamer renamer)
         {
             _transcriptReader = transcriptReader;
             _regulatoryReader = regulatoryReader;
-            _geneReader       = geneReader;
             _mergedGeneReader = mergedGeneReader;
             _intronReader     = intronReader;
             _microRnaReader   = mirnaReader;
@@ -61,7 +56,6 @@ namespace CacheUtils.CreateCache
 
             _transcripts        = new List<VD.Transcript>();
             _regulatoryElements = new List<VD.RegulatoryElement>();
-            _genes              = new List<MutableGene>();
             _mergedGenes        = new List<MutableGene>();
             _introns            = new List<VD.SimpleInterval>();
             _microRnas          = new List<VD.SimpleInterval>();
@@ -77,7 +71,6 @@ namespace CacheUtils.CreateCache
             var loadBenchmark = new Benchmark();
 
             Load(_regulatoryReader, _regulatoryElements);
-            Load(_geneReader, _genes);
             Load(_mergedGeneReader, _mergedGenes);
             Load(_intronReader, _introns);
             Load(_microRnaReader, _microRnas);
@@ -88,7 +81,7 @@ namespace CacheUtils.CreateCache
 
             while (true)
             {
-                var transcript = _transcriptReader.GetLightTranscript();
+                var transcript = _transcriptReader.GetTranscript();
 
                 if (transcript == null) break;
                 _transcripts.Add(transcript);

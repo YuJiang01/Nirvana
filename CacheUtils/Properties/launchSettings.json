@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "CacheUtils": {
+      "commandName": "Project",
+      "commandLineArgs": "parse --date 2016-12-11 --ensembl --ga GRCh37 --vep 87 -r References\\5\\Homo_sapiens.GRCh37.Nirvana.dat -i VEP_caches\\87\\homo_sapiens\\87_GRCh37 -o e:\\Sync\\Nirvana\\CacheDump\\87\\GRCh37",
+      "workingDirectory": "E:\\Data\\Nirvana"
+    }
+  }
+}

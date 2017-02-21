@@ -12,7 +12,6 @@ namespace CacheUtils.ParseVepCacheDirectory
     public sealed class ReferenceIndex
     {
         private readonly Dictionary<string, ushort> _referenceSequenceIndices;
-        public readonly ushort NumReferenceSeqs;
         private readonly ChromosomeRenamer _renamer;
 
         public ReferenceIndex(string compressedReferencePath)
@@ -24,9 +23,9 @@ namespace CacheUtils.ParseVepCacheDirectory
             var referenceMetadataList    = compressedSequenceReader.Metadata;
             _referenceSequenceIndices    = new Dictionary<string, ushort>();
 
-            NumReferenceSeqs = (ushort)referenceMetadataList.Count;
+            var numReferenceSeqs = (ushort)referenceMetadataList.Count;
 
-            for (ushort refIndex = 0; refIndex < NumReferenceSeqs; refIndex++)
+            for (ushort refIndex = 0; refIndex < numReferenceSeqs; refIndex++)
             {
                 var refMetadata = referenceMetadataList[refIndex];
                 AddReferenceSequence(refMetadata.UcscName, refIndex);

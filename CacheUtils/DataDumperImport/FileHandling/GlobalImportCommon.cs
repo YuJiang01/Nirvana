@@ -13,7 +13,6 @@
             Regulatory,
             Transcript,
             Intron,
-            Exon,
             MicroRna,
             Sift,
             PolyPhen,

@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -10,9 +10,9 @@ namespace CacheUtils.DataDumperImport.Import
         #region members
 
         private const string AdaptorKey    = "adaptor";
-        internal const string EndExonKey   = "end_exon";
+        private const string EndExonKey    = "end_exon";
         private const string SequenceKey   = "seq";
-        internal const string StartExonKey = "start_exon";
+        private const string StartExonKey  = "start_exon";
         private const string TranscriptKey = "transcript";
 
         private static readonly HashSet<string> KnownKeys;
@@ -40,11 +40,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each translation object
         /// </summary>
-        public static DataStructures.VEP.Translation Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        public static DataStructures.Translation Parse(ObjectValue objectValue, ImportDataStore dataStore)
         {
-            var translation = new DataStructures.VEP.Translation();
+            var translation = new DataStructures.Translation();
 
-            // loop over all of the key/value pairs in the translation object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -61,6 +60,7 @@ namespace CacheUtils.DataDumperImport.Import
                     case SequenceKey:
                     case Transcript.DbIdKey:
                     case Transcript.StableIdKey:
+                    case TranscriptKey:
                         // skip this key
                         break;
                     case EndExonKey:
@@ -79,13 +79,6 @@ namespace CacheUtils.DataDumperImport.Import
                             translation.StartExon = newExon;
                         }
                         break;
-                    case TranscriptKey:
-                        // parse this during the references
-                        if (!DumperUtilities.IsReference(ad))
-                        {
-                            throw new GeneralException("Found a Translation->Transcript entry that wasn't a reference.");
-                        }
-                        break;
                     case Transcript.EndKey:
                         translation.End = DumperUtilities.GetInt32(ad);
                         break;
@@ -101,41 +94,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return translation;
-        }
-
-        /// <summary>
-        /// points to a translation that has already been created
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.Translation translation, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the translation object
-            foreach (AbstractData ad in objectValue)
-            {
-                if (!DumperUtilities.IsReference(ad)) continue;
-
-                // handle each key
-                var referenceKeyValue = ad as ReferenceKeyValue;
-                if (referenceKeyValue == null) continue;
-
-                switch (referenceKeyValue.Key)
-                {
-                    case AdaptorKey:
-                        // skip this key
-                        break;
-                    case EndExonKey:
-                        translation.EndExon = Exon.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    case StartExonKey:
-                        translation.StartExon = Exon.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    case TranscriptKey:
-                        translation.Transcript = Transcript.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    default:
-                        throw new GeneralException(
-                            $"Found an unhandled reference in the translation object: {ad.Key}");
-                }
-            }
         }
     }
 }

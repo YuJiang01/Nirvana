@@ -140,7 +140,7 @@ namespace CacheUtils.CreateCache.FileHandling
         /// <summary>
         /// retrieves the next variantFeature. Returns false if there are no more variants available
         /// </summary>
-        public Transcript GetLightTranscript()
+        public Transcript GetTranscript()
         {
             if (!_hasLists) throw new GeneralException("No lists have been supplied to the transcript reader.");
 
@@ -286,75 +286,8 @@ namespace CacheUtils.CreateCache.FileHandling
                 throw new GeneralException(
                     $"Did not find any genes that overlap with this transcript: {transcriptId}");
 
-            //if (_overlappingGenes.Count == 1) return _overlappingGenes[0];
-
             var genesWithCorrectGeneId = FilterOnGeneId(_overlappingGenes, geneId);
             if (genesWithCorrectGeneId.Count == 1) return genesWithCorrectGeneId[0];
-
-            //if (genesWithCorrectGeneId.Count == 0)
-            //{
-            //    var geneIds = _overlappingGenes.Select(x => x.EnsemblId.ToString()).ToList();
-            //    geneIds.AddRange(_overlappingGenes.Select(x => x.EntrezGeneId.ToString()).ToList());
-            //    var joinedGeneIds = string.Join("\n", geneIds);
-
-            //    throw new UserErrorException(
-            //        $"Did not find any overlapping genes with the truth info gene ID ({truthInfo.GeneId}) when evaluating this transcript ({transcriptId}):\n{joinedGeneIds}");
-            //}
-
-            //// filter out the overlapping genes
-            //var originalGeneId = GetGeneId(originalGene);
-            //if (originalGeneId.IsEmpty) throw new GeneralException("Found an empty original gene ID.");
-
-            //FilterGenes(transcriptStart, transcriptEnd, originalGeneId, originalGene.OnReverseStrand);
-            //if (_filteredGenes.Count == 1) return _filteredGenes[0];
-
-            //// look for a unique start coordinate
-            //var sameStartGenes = FindStartMatch(originalGene.Start);
-            //if (sameStartGenes.Count == 1) return sameStartGenes[0];
-
-            //// look for a unique end coordinate
-            //var sameEndGenes = FindEndMatch(originalGene.End);
-            //if (sameEndGenes.Count == 1) return sameEndGenes[0];
-
-            //// look for unique HGNC matches
-            //var sameHgncGenes = FindHgncMatch(originalGene.HgncId);
-            //if (sameHgncGenes.Count == 1) return sameHgncGenes[0];
-
-            //// look for a unique symbol match
-            //var sameSymbolGenes = FindSymbolMatch(originalGene.Symbol);
-            //if (sameSymbolGenes.Count == 1) return sameSymbolGenes[0];
-
-            //// arbitrarily pick the first entry
-            //if (_filteredGenes.Count != 0) return _filteredGenes[0];
-
-            //// look for a unique index match
-            //var sameIndexGenes = FindIndexMatch(originalGene.GeneIndex);
-            //if (sameIndexGenes.Count == 1) return sameIndexGenes[0];
-
-            //// ====================================================================
-            //// show diagnostics to help figure out why we failed to assign the gene
-            //// ====================================================================
-
-            //Console.WriteLine("\n");
-            //Console.WriteLine("truth:");
-            //Console.WriteLine($"gene ID: {truthInfo.GeneId}, symbol: {truthInfo.GeneSymbol}");
-
-            ////Console.WriteLine();
-            ////Console.WriteLine($"original gene:\n{originalGene.ToVerboseString()}");
-
-            //Console.WriteLine();
-            //Console.WriteLine($"gene ID:\n{geneId}");
-
-            //Console.WriteLine();
-            //Console.WriteLine($"transcript:\n{transcriptStart} - {transcriptEnd}");
-
-            //Console.WriteLine();
-            //Console.WriteLine("overlapping genes:");
-            //foreach (var gene in _overlappingGenes) Console.WriteLine(gene.ToVerboseString());
-
-            ////Console.WriteLine();
-            ////Console.WriteLine("filtered genes:");
-            ////foreach(var gene in _filteredGenes) Console.WriteLine(gene.ToVerboseString());
 
             Console.WriteLine();
             throw new GeneralException("Unable to link the merged gene back to the original gene");

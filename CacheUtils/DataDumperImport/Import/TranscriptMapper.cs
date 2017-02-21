@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using ErrorHandling.Exceptions;
 
 namespace CacheUtils.DataDumperImport.Import
@@ -32,11 +32,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each transcript mapper
         /// </summary>
-        public static DataStructures.VEP.TranscriptMapper Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        public static DataStructures.TranscriptMapper Parse(ObjectValue objectValue, ImportDataStore dataStore)
         {
-            var mapper = new DataStructures.VEP.TranscriptMapper();
+            var mapper = new DataStructures.TranscriptMapper();
 
-            // loop over all of the key/value pairs in the transcript mapper object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -71,21 +70,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return mapper;
-        }
-
-        /// <summary>
-        /// parses the relevant data from each transcript mapper cache
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.TranscriptMapper transcriptMapper, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the transcript mapper object
-            foreach (AbstractData ad in objectValue)
-            {
-                if (ad.Key != ExonCoordinateMapperKey) continue;
-
-                var exonMapperNode = ad as ObjectKeyValue;
-                if (exonMapperNode != null) Mapper.ParseReference(exonMapperNode.Value, transcriptMapper.ExonCoordinateMapper, dataStore);
-            }
         }
     }
 }

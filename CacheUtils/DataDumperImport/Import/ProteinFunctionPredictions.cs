@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -33,11 +33,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each protein function predictions object
         /// </summary>
-        public static DataStructures.VEP.ProteinFunctionPredictions Parse(ObjectValue objectValue)
+        public static DataStructures.ProteinFunctionPredictions Parse(ObjectValue objectValue)
         {
-            var predictions          = new DataStructures.VEP.ProteinFunctionPredictions();
+            var predictions = new DataStructures.ProteinFunctionPredictions();
 
-            // loop over all of the key/value pairs in the protein function predictions object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -73,10 +72,6 @@ namespace CacheUtils.DataDumperImport.Import
                         {
                             predictions.PolyPhen = null;
                         }
-                        else if (DumperUtilities.IsReference(ad))
-                        {
-                            // skip references for now
-                        }
                         else
                         {
                             throw new GeneralException(
@@ -93,10 +88,6 @@ namespace CacheUtils.DataDumperImport.Import
                         {
                             predictions.Sift = null;
                         }
-                        else if (DumperUtilities.IsReference(ad))
-                        {
-                            // skip references for now
-                        }
                         else
                         {
                             throw new GeneralException(
@@ -109,35 +100,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return predictions;
-        }
-
-        /// <summary>
-        /// parses the relevant data from each protein function prediction object
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.ProteinFunctionPredictions cache, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the cache object
-            foreach (AbstractData ad in objectValue)
-            {
-                if (!DumperUtilities.IsReference(ad)) continue;
-
-                // handle each key
-                var referenceKeyValue = ad as ReferenceKeyValue;
-                if (referenceKeyValue == null) continue;
-
-                switch (referenceKeyValue.Key)
-                {
-                    case PolyPhenHumVarKey:
-                        cache.PolyPhen = PolyPhen.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    case SiftKey:
-                        cache.Sift = Sift.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    default:
-                        throw new GeneralException(
-                            $"Found an unhandled reference in the protein function prediction object: {ad.Key}");
-                }
-            }
         }
     }
 }

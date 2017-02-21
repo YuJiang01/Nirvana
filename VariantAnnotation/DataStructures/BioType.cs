@@ -19,6 +19,7 @@ namespace VariantAnnotation.DataStructures
         IgJPseudoGene,
         IgVGene,
         IgVPseudoGene,
+        IgPseudoGene,
         LongIntergenicNonCodingRna,
         lncRNA,
         macroLncRNA,
@@ -29,6 +30,7 @@ namespace VariantAnnotation.DataStructures
         NonCoding,
         NonsenseMediatedDecay,
         NonStopDecay,
+        Other,
         PolymorphicPseudoGene,
         ProcessedPseudoGene,
         ProcessedTranscript,
@@ -81,7 +83,7 @@ namespace VariantAnnotation.DataStructures
 		private const string AmbiguousOrfBiotypeKey                     = "ambiguous_orf";
         private const string AntisenseBiotypeKey                        = "antisense";
         private const string AntisenseRnaBiotypeKey                     = "antisense_RNA";
-        private const string BidirectionalPromoterLncRnaKey             = "bidirectional_promoter_lncrna";
+        private const string BidirectionalPromoterLncRnaKey             = "bidirectional_promoter_lncRNA";
         private const string GuideRnaBiotypeKey                         = "guide_RNA";
         private const string IgCGeneBiotypeKey                          = "IG_C_gene";
         private const string IgCPseudoGeneBiotypeKey                    = "IG_C_pseudogene";
@@ -90,6 +92,7 @@ namespace VariantAnnotation.DataStructures
         private const string IgJPseudoGeneBiotypeKey                    = "IG_J_pseudogene";
         private const string IgVGeneBiotypeKey                          = "IG_V_gene";
         private const string IgVPseudoGeneBiotypeKey                    = "IG_V_pseudogene";
+        private const string IgPseudoGeneBiotypeKey                     = "IG_pseudogene";
         private const string LongIntergenicNonCodingRnaBiotypeKey       = "lincRNA";
         private const string LongNonCodingRnaBiotypeKey                 = "lncRNA";
         private const string MacroLongNonCodingRnaBiotypeKey            = "macro_lncRNA";
@@ -101,6 +104,7 @@ namespace VariantAnnotation.DataStructures
         private const string NonCodingBiotypeKey                        = "non_coding";
         private const string NonsenseMediatedDecayBiotypeKey            = "nonsense_mediated_decay";
         private const string NonStopDecayBiotypeKey                     = "non_stop_decay";
+        private const string OtherBiotypeKey                            = "other";
         private const string PolymorphicPseudoGene                      = "polymorphic_pseudogene";
         private const string ProcessedPseudoGeneBiotypeKey              = "processed_pseudogene";
         private const string ProcessedTranscriptBiotypeKey              = "processed_transcript";
@@ -121,7 +125,7 @@ namespace VariantAnnotation.DataStructures
         private const string SmallNucleolarRnaBiotypeKey                = "snoRNA";
         private const string SignalRecognitionParticleRnaBiotypeKey     = "SRP_RNA";
         private const string TelomeraseRnaBiotypeKey                    = "telomerase_RNA";
-        private const string ThreePrimeOverlappingNcRnaBiotypeKey       = "3prime_overlapping_ncrna";
+        private const string ThreePrimeOverlappingNcRnaBiotypeKey       = "3prime_overlapping_ncRNA";
         private const string TranscribedProcessedPseudoGeneBiotypeKey   = "transcribed_processed_pseudogene";
         private const string TranscribedUnitaryPseudoGeneBiotypeKey     = "transcribed_unitary_pseudogene";
         private const string TranscribedUnprocessedPseudoGeneBiotypeKey = "transcribed_unprocessed_pseudogene";
@@ -157,6 +161,7 @@ namespace VariantAnnotation.DataStructures
             AddBioType(IgJPseudoGeneBiotypeKey,                    BioType.IgJPseudoGene);
             AddBioType(IgVGeneBiotypeKey,                          BioType.IgVGene);
             AddBioType(IgVPseudoGeneBiotypeKey,                    BioType.IgVPseudoGene);
+            AddBioType(IgPseudoGeneBiotypeKey,                     BioType.IgPseudoGene);
             AddBioType(LongIntergenicNonCodingRnaBiotypeKey,       BioType.LongIntergenicNonCodingRna);
             AddBioType(LongNonCodingRnaBiotypeKey,                 BioType.lncRNA);
             AddBioType(MacroLongNonCodingRnaBiotypeKey,            BioType.macroLncRNA);
@@ -168,6 +173,7 @@ namespace VariantAnnotation.DataStructures
             AddBioType(NonCodingBiotypeKey,                        BioType.NonCoding);
             AddBioType(NonsenseMediatedDecayBiotypeKey,            BioType.NonsenseMediatedDecay);
             AddBioType(NonStopDecayBiotypeKey,                     BioType.NonStopDecay);
+            AddBioType(OtherBiotypeKey,                            BioType.Other);
             AddBioType(PolymorphicPseudoGene,                      BioType.PolymorphicPseudoGene);
             AddBioType(ProcessedPseudoGeneBiotypeKey,              BioType.ProcessedPseudoGene);
             AddBioType(ProcessedTranscriptBiotypeKey,              BioType.ProcessedTranscript);
@@ -213,7 +219,7 @@ namespace VariantAnnotation.DataStructures
         /// </summary>
         private static void AddBioType(string s, BioType bioType)
         {
-            StringToBioType[s] = bioType;
+            StringToBioType[s.ToLower()] = bioType;
 	        BioTypeToString[bioType] = s;
         }
 
@@ -223,7 +229,7 @@ namespace VariantAnnotation.DataStructures
         public static BioType GetBiotypeFromString(string s)
         {
             BioType ret;
-            if (!StringToBioType.TryGetValue(s, out ret))
+            if (!StringToBioType.TryGetValue(s.ToLower(), out ret))
             {
                 throw new GeneralException($"Unable to find the specified BioType ({s}) in the BioType dictionary.");
             }

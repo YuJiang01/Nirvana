@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -8,6 +8,13 @@ namespace CacheUtils.DataDumperImport.Import
     internal static class Intron
     {
         #region members
+
+        private const string AdaptorKey  = "adaptor";
+        private const string SeqNameKey  = "seqname";
+        private const string NextKey     = "next";
+        private const string DbIdKey     = "dbID";
+        private const string PrevKey     = "prev";
+        private const string AnalysisKey = "analysis";
 
         private static readonly HashSet<string> KnownKeys;
 
@@ -21,18 +28,23 @@ namespace CacheUtils.DataDumperImport.Import
                 Transcript.EndKey,
                 Transcript.SliceKey,
                 Transcript.StartKey,
-                Transcript.StrandKey
+                Transcript.StrandKey,
+                AdaptorKey,
+                SeqNameKey,
+                NextKey,
+                DbIdKey,
+                PrevKey,
+                AnalysisKey
             };
         }
 
         /// <summary>
         /// returns a new exon given an ObjectValue
         /// </summary>
-        private static DataStructures.VEP.Intron Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        private static DataStructures.Intron Parse(ObjectValue objectValue)
         {
-            var intron = new DataStructures.VEP.Intron();
+            var intron = new DataStructures.Intron();
 
-            // loop over all of the key/value pairs in the intron object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -44,34 +56,17 @@ namespace CacheUtils.DataDumperImport.Import
                 // handle each key
                 switch (ad.Key)
                 {
+                    case AdaptorKey:
+                    case SeqNameKey:
+                    case NextKey:
+                    case DbIdKey:
+                    case PrevKey:
+                    case AnalysisKey:
+                    case Transcript.SliceKey:
+                        // not used
+                        break;
                     case Transcript.EndKey:
                         intron.End = DumperUtilities.GetInt32(ad);
-                        break;
-                    case Transcript.SliceKey:
-                        var sliceNode = ad as ObjectKeyValue;
-                        if (sliceNode != null)
-                        {
-                            var newSlice = Slice.Parse(sliceNode.Value, dataStore.CurrentReferenceIndex);
-                            // DS.VEP.Slice oldSlice;
-                            // if (dataStore.Slices.TryGetValue(newSlice, out oldSlice))
-                            //{
-                            //    intron.Slice = oldSlice;
-                            //}
-                            // else
-                            //{
-                            intron.Slice = newSlice;
-                            //    dataStore.Slices[newSlice] = newSlice;
-                            //}
-                        }
-                        else if (DumperUtilities.IsReference(ad))
-                        {
-                            // skip references until the second pass
-                        }
-                        else
-                        {
-                            throw new GeneralException(
-                                $"Could not transform the AbstractData object into an ObjectKeyValue or ReferenceKeyValue: [{ad.GetType()}]");
-                        }
                         break;
                     case Transcript.StartKey:
                         intron.Start = DumperUtilities.GetInt32(ad);
@@ -90,35 +85,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each intron object
         /// </summary>
-        private static void ParseReference(ObjectValue objectValue, DataStructures.VEP.Intron intron, ImportDataStore dataStore)
+        public static DataStructures.Intron[] ParseList(List<AbstractData> abstractDataList)
         {
-            // loop over all of the key/value pairs in the intron object
-            foreach (AbstractData ad in objectValue)
-            {
-                // skip normal entries
-                if (!DumperUtilities.IsReference(ad)) continue;
+            var introns = new DataStructures.Intron[abstractDataList.Count];
 
-                // handle each key
-                switch (ad.Key)
-                {
-                    case Transcript.SliceKey:
-                        var referenceKeyValue = ad as ReferenceKeyValue;
-                        if (referenceKeyValue != null) intron.Slice = Slice.ParseReference(referenceKeyValue.Value, dataStore);
-                        break;
-                    default:
-                        throw new GeneralException($"Found an unhandled reference in the intron object: {ad.Key}");
-                }
-            }
-        }
-
-        /// <summary>
-        /// parses the relevant data from each intron object
-        /// </summary>
-        public static DataStructures.VEP.Intron[] ParseList(List<AbstractData> abstractDataList, ImportDataStore dataStore)
-        {
-            var introns = new DataStructures.VEP.Intron[abstractDataList.Count];
-
-            // loop over all of the introns
             for (int intronIndex = 0; intronIndex < abstractDataList.Count; intronIndex++)
             {
                 var objectValue = abstractDataList[intronIndex] as ObjectValue;
@@ -127,31 +97,10 @@ namespace CacheUtils.DataDumperImport.Import
                     throw new GeneralException(
                         $"Could not transform the AbstractData object into an ObjectValue: [{abstractDataList[intronIndex].GetType()}]");
                 }
-                introns[intronIndex] = Parse(objectValue, dataStore);
+                introns[intronIndex] = Parse(objectValue);
             }
 
             return introns;
-        }
-
-        /// <summary>
-        /// points to a introns that have already been created
-        /// </summary>
-        public static void ParseListReference(List<AbstractData> abstractDataList, DataStructures.VEP.Intron[] introns, ImportDataStore dataStore)
-        {
-            // loop over all of the introns
-            for (int intronIndex = 0; intronIndex < abstractDataList.Count; intronIndex++)
-            {
-                var intronNode = abstractDataList[intronIndex];
-
-                var objectValue = intronNode as ObjectValue;
-                if (objectValue == null)
-                {
-                    throw new GeneralException(
-                        $"Could not transform the AbstractData object into an ObjectValue: [{abstractDataList[intronIndex].GetType()}]");
-                }
-
-                ParseReference(objectValue, introns[intronIndex], dataStore);
-            }
         }
     }
 }

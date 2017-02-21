@@ -1,10 +1,9 @@
-﻿namespace CacheUtils.DataDumperImport.DataStructures.VEP
+﻿namespace CacheUtils.DataDumperImport.DataStructures
 {
     public sealed class Translation
     {
         public Exon EndExon          = null;
         public Exon StartExon        = null;
-        public Transcript Transcript = null;
 
         public int End;
         public int Start;

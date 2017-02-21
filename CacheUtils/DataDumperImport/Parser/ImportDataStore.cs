@@ -1,14 +1,15 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures.VEP;
+using CacheUtils.DataDumperImport.DataStructures;
 using VariantAnnotation.DataStructures;
+using Transcript = CacheUtils.DataDumperImport.DataStructures.Transcript;
 
-namespace CacheUtils.DataDumperImport.DataStructures
+namespace CacheUtils.DataDumperImport.Parser
 {
     public sealed class ImportDataStore
     {
         #region members
 
-        public readonly List<VEP.Transcript> Transcripts               = new List<VEP.Transcript>();
+        public readonly List<Transcript> Transcripts               = new List<Transcript>();
         public readonly List<RegulatoryFeature> RegulatoryFeatures = new List<RegulatoryFeature>();
 
         public ushort CurrentReferenceIndex;

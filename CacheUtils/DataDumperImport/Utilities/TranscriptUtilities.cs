@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using CacheUtils.DataDumperImport.DataStructures;
-using CacheUtils.DataDumperImport.DataStructures.VEP;
+using CacheUtils.DataDumperImport.Parser;
 using VariantAnnotation.DataStructures;
 using ErrorHandling.Exceptions;
 
@@ -33,14 +33,6 @@ namespace CacheUtils.DataDumperImport.Utilities
         public static BioType GetBiotype(AbstractData ad)
         {
             return BioTypeUtilities.GetBiotypeFromString(DumperUtilities.GetString(ad));
-        }
-
-        /// <summary>
-        /// returns the biotype given the specialized string key/value type
-        /// </summary>
-        public static GeneSymbolSource GetGeneSymbolSource(AbstractData ad)
-        {
-            return GeneSymbolSourceUtilities.GetGeneSymbolSourceFromString(DumperUtilities.GetString(ad));
         }
 
         /// <summary>

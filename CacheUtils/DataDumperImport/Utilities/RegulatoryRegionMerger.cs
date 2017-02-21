@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using CacheUtils.DataDumperImport.DataStructures;
-using CacheUtils.DataDumperImport.DataStructures.VEP;
+using CacheUtils.DataDumperImport.Parser;
 using ErrorHandling.Exceptions;
 
 namespace CacheUtils.DataDumperImport.Utilities

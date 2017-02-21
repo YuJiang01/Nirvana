@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -27,11 +27,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each pair genomic object
         /// </summary>
-        public static DataStructures.VEP.PairGenomic Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        public static DataStructures.PairGenomic Parse(ObjectValue objectValue, ImportDataStore dataStore)
         {
-            var pairGenomic = new DataStructures.VEP.PairGenomic();
+            var pairGenomic = new DataStructures.PairGenomic();
 
-            // loop over all of the key/value pairs in the pair genomic object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -65,30 +64,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return pairGenomic;
-        }
-
-        /// <summary>
-        /// parses the relevant data from each pair genomic object
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.PairGenomic pairGenomic, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the pair genomic object
-            foreach (AbstractData ad in objectValue)
-            {
-                // handle each key
-                switch (ad.Key)
-                {
-                    case GenomicKey:
-                        var genomicNode = ad as ListObjectKeyValue;
-                        if (genomicNode != null)
-                        {
-                            MapperPair.ParseListReference(genomicNode.Values, pairGenomic.Genomic, dataStore);
-                        }
-                        break;
-                    default:
-                        throw new GeneralException($"Unknown key found: {ad.Key}");
-                }
-            }
         }
     }
 }

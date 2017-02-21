@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using VariantAnnotation.DataStructures;
 using ErrorHandling.Exceptions;
+using Transcript = CacheUtils.DataDumperImport.DataStructures.Transcript;
 
 namespace CacheUtils.DataDumperImport.Utilities
 {
@@ -38,9 +39,9 @@ namespace CacheUtils.DataDumperImport.Utilities
             return _whiteListPrefixes.Any(transcriptId.StartsWith);
         }
 
-        private Dictionary<string, DataStructures.VEP.Transcript> GetMergedTranscripts(ImportDataStore other)
+        private Dictionary<string, Transcript> GetMergedTranscripts(ImportDataStore other)
         {
-            var transcriptDict = new Dictionary<string, DataStructures.VEP.Transcript>();
+            var transcriptDict = new Dictionary<string, Transcript>();
 
             foreach (var transcript in other.Transcripts)
             {
@@ -57,7 +58,7 @@ namespace CacheUtils.DataDumperImport.Utilities
 
                 // merge transcripts
                 var transcriptKey = $"{transcript.StableId}.{transcript.Start}.{transcript.End}";
-                DataStructures.VEP.Transcript prevTranscript;
+                Transcript prevTranscript;
 
                 if (transcriptDict.TryGetValue(transcriptKey, out prevTranscript))
                 {
@@ -72,7 +73,7 @@ namespace CacheUtils.DataDumperImport.Utilities
             return transcriptDict;
         }
 
-        private static void MergeTranscript(DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static void MergeTranscript(Transcript prev, Transcript curr)
         {
             if (TranscriptEquals(prev, curr)) return;
 
@@ -87,7 +88,7 @@ namespace CacheUtils.DataDumperImport.Utilities
             throw new GeneralException("Found different transcripts");
         }
 
-        private static void FixBiotype(DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static void FixBiotype(Transcript prev, Transcript curr)
         {
             if (prev.BioType == curr.BioType) return;
 
@@ -108,7 +109,6 @@ namespace CacheUtils.DataDumperImport.Utilities
             if (mRNA != null && proteinCoding != null)
             {
                 mRNA.BioType            = proteinCoding.BioType;
-                mRNA.TransExons         = proteinCoding.TransExons;
                 mRNA.Translation        = proteinCoding.Translation;
                 mRNA.VariantEffectCache = proteinCoding.VariantEffectCache;
                 mRNA.CompDnaCodingStart = proteinCoding.CompDnaCodingStart;
@@ -125,21 +125,21 @@ namespace CacheUtils.DataDumperImport.Utilities
             }
         }
 
-        private static DataStructures.VEP.Transcript GetTranscript(BioType bioType, DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static Transcript GetTranscript(BioType bioType, Transcript prev, Transcript curr)
         {
             if (prev.BioType == bioType) return prev;
             if (curr.BioType == bioType) return curr;
             return null;
         }
 
-        private static void FixCanonical(DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static void FixCanonical(Transcript prev, Transcript curr)
         {
             if (prev.IsCanonical == curr.IsCanonical) return;
             if (!prev.IsCanonical) prev.IsCanonical = true;
             if (!curr.IsCanonical) curr.IsCanonical = true;
         }
 
-        private static void AddGeneSymbol(DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static void AddGeneSymbol(Transcript prev, Transcript curr)
         {
             var prevHasSymbol = string.IsNullOrEmpty(prev.GeneSymbol);
             var currHasSymbol = string.IsNullOrEmpty(curr.GeneSymbol);
@@ -150,7 +150,7 @@ namespace CacheUtils.DataDumperImport.Utilities
             if (!currHasSymbol) curr.GeneSymbol = prev.GeneSymbol;
         }
 
-        private static void TranscriptDump(DataStructures.VEP.Transcript t)
+        private static void TranscriptDump(Transcript t)
         {
             Console.WriteLine("==================================");
             Console.WriteLine($"ReferenceIndex:     {t.ReferenceIndex}");
@@ -162,19 +162,15 @@ namespace CacheUtils.DataDumperImport.Utilities
             Console.WriteLine($"CompDnaCodingStart: {t.CompDnaCodingStart}");
             Console.WriteLine($"CompDnaCodingEnd:   {t.CompDnaCodingEnd}");
             Console.WriteLine($"Version:            {t.Version}");
-            Console.WriteLine($"CcdsId:             {t.CcdsId}");
-            Console.WriteLine($"DatabaseId:         {t.DatabaseId}");
             Console.WriteLine($"ProteinId:          {t.ProteinId}");
-            Console.WriteLine($"RefSeqId:           {t.RefSeqId}");
             Console.WriteLine($"GeneStableId:       {t.GeneStableId}");
             Console.WriteLine($"StableId:           {t.StableId}");
             Console.WriteLine($"GeneSymbol:         {t.GeneSymbol}");
-            Console.WriteLine($"GeneSymbolSource:   {t.GeneSymbolSource}");
             Console.WriteLine($"HgncId:             {t.HgncId}");
             Console.WriteLine("==================================");
         }
 
-        private static bool TranscriptEquals(DataStructures.VEP.Transcript prev, DataStructures.VEP.Transcript curr)
+        private static bool TranscriptEquals(Transcript prev, Transcript curr)
         {
             return prev.ReferenceIndex     == curr.ReferenceIndex     &&
                    prev.Start              == curr.Start              &&
@@ -185,13 +181,10 @@ namespace CacheUtils.DataDumperImport.Utilities
                    prev.CompDnaCodingStart == curr.CompDnaCodingStart &&
                    prev.CompDnaCodingEnd   == curr.CompDnaCodingEnd   &&
                    prev.Version            == curr.Version            &&
-                   prev.CcdsId             == curr.CcdsId             &&
                    prev.ProteinId          == curr.ProteinId          &&
-                   prev.RefSeqId           == curr.RefSeqId           &&
                    prev.GeneStableId       == curr.GeneStableId       &&
                    prev.StableId           == curr.StableId           &&
                    prev.GeneSymbol         == curr.GeneSymbol         &&
-                   prev.GeneSymbolSource   == curr.GeneSymbolSource   &&
                    prev.HgncId             == curr.HgncId;
         }
     }

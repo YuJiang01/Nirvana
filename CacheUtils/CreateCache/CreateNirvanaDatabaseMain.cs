@@ -1,5 +1,4 @@
-﻿using CacheUtils.CombineAndUpdateGenes.FileHandling;
-using CacheUtils.CreateCache.FileHandling;
+﻿using CacheUtils.CreateCache.FileHandling;
 using CacheUtils.DataDumperImport.FileHandling;
 using NDesk.Options;
 using VariantAnnotation.CommandLine;
@@ -81,7 +80,6 @@ namespace CacheUtils.CreateCache
         {
             var transcriptPath = ConfigurationSettings.InputPrefix + ".transcripts.gz";
             var regulatoryPath = ConfigurationSettings.InputPrefix + ".regulatory.gz";
-            var genePath       = ConfigurationSettings.InputPrefix + ".genes.gz";
             var intronPath     = ConfigurationSettings.InputPrefix + ".introns.gz";
             var mirnaPath      = ConfigurationSettings.InputPrefix + ".mirnas.gz";
             var siftPath       = ConfigurationSettings.InputPrefix + ".sift.dat";
@@ -92,13 +90,12 @@ namespace CacheUtils.CreateCache
 
             using (var transcriptReader = new VepTranscriptReader(transcriptPath))
             using (var regulatoryReader = new VepRegulatoryReader(regulatoryPath))
-            using (var geneReader       = new VepGeneReader(genePath))
             using (var mergedGeneReader = new VepCombinedGeneReader(ConfigurationSettings.InputMergedGenesPath))
             using (var intronReader     = new VepSimpleIntervalReader(intronPath, "intron", GlobalImportCommon.FileType.Intron))
             using (var mirnaReader      = new VepSimpleIntervalReader(mirnaPath, "miRNA", GlobalImportCommon.FileType.MicroRna))
             using (var peptideReader    = new VepSequenceReader(peptidePath, "peptide", GlobalImportCommon.FileType.Peptide))
             {
-                var converter = new NirvanaDatabaseCreator(transcriptReader, regulatoryReader, geneReader,
+                var converter = new NirvanaDatabaseCreator(transcriptReader, regulatoryReader,
                     mergedGeneReader, intronReader, mirnaReader, peptideReader, renamer);
 
                 converter.LoadData();

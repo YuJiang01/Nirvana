@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using ErrorHandling.Exceptions;
 
 namespace CacheUtils.DataDumperImport.Utilities
@@ -51,18 +51,6 @@ namespace CacheUtils.DataDumperImport.Utilities
             }
 
             return string.IsNullOrEmpty(stringKeyValue.Value) ? null : stringKeyValue.Value;
-        }
-
-        /// <summary>
-        /// returns true if the data type is a pointer to another type
-        /// </summary>
-        public static bool IsReference(AbstractData ad)
-        {
-            var referenceStringValue = ad as ReferenceStringValue;
-            if (referenceStringValue != null && referenceStringValue.Value.StartsWith("$VAR1->")) return true;
-
-            var referenceKeyValue = ad as ReferenceKeyValue;
-            return referenceKeyValue != null && referenceKeyValue.Value.StartsWith("$VAR1->");
         }
 
         /// <summary>

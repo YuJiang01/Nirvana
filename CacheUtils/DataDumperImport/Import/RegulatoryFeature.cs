@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -11,15 +11,19 @@ namespace CacheUtils.DataDumperImport.Import
 
         public const string DataType = "Bio::EnsEMBL::Funcgen::RegulatoryFeature";
 
-        private const string ProjectedKey     = "projected";
-        private const string SetKey           = "set";
-        private const string CellTypesKey     = "cell_types";
-        private const string DisplayLabelKey  = "display_label";
-        private const string BoundLengthsKey  = "_bound_lengths";
-        private const string DbIdKey          = "dbID";
-        private const string FeatureTypeKey   = "feature_type";
-        private const string CellTypeCountKey = "cell_type_count";
-        private const string HasEvidenceKey   = "has_evidence";
+        private const string ProjectedKey      = "projected";
+        private const string SetKey            = "set";
+        private const string CellTypesKey      = "cell_types";
+        private const string DisplayLabelKey   = "display_label";
+        private const string BoundLengthsKey   = "_bound_lengths";
+        private const string DbIdKey           = "dbID";
+        private const string FeatureTypeKey    = "feature_type";
+        private const string CellTypeCountKey  = "cell_type_count";
+        private const string HasEvidenceKey    = "has_evidence";
+        private const string RegulatoryBuildId = "regulatory_build_id";
+        private const string EpigenomeCount    = "epigenome_count";
+        private const string AnalysisId        = "_analysis_id";
+        private const string VepFeatureType    = "_vep_feature_type";
 
         private static readonly HashSet<string> KnownKeys;
 
@@ -43,7 +47,11 @@ namespace CacheUtils.DataDumperImport.Import
                 Transcript.StableIdKey,
                 Transcript.StartKey,
                 Transcript.StrandKey,
-                Transcript.SliceKey
+                Transcript.SliceKey,
+                RegulatoryBuildId,
+                EpigenomeCount,
+                AnalysisId,
+                VepFeatureType
             };
         }
 
@@ -52,14 +60,11 @@ namespace CacheUtils.DataDumperImport.Import
         /// </summary>
         public static void Parse(ObjectValue objectValue, int regulatoryFeatureIndex, ImportDataStore dataStore)
         {
-            // Console.WriteLine("*** Parse {0} ***", regulatoryFeatureIndex + 1);
-
             int start       = -1;
             int end         = -1;
             string stableId = null;
             string type     = null;
 
-            // loop over all of the key/value pairs in the transcript object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -82,6 +87,10 @@ namespace CacheUtils.DataDumperImport.Import
                     case SetKey:
                     case Transcript.StrandKey:
                     case Transcript.SliceKey:
+                    case RegulatoryBuildId:
+                    case EpigenomeCount:
+                    case AnalysisId:
+                    case VepFeatureType:
                         // not used
                         break;
                     case FeatureTypeKey:
@@ -101,7 +110,7 @@ namespace CacheUtils.DataDumperImport.Import
                 }
             }
 
-            dataStore.RegulatoryFeatures.Add(new DataStructures.VEP.RegulatoryFeature(dataStore.CurrentReferenceIndex, start, end, stableId, type));
+            dataStore.RegulatoryFeatures.Add(new DataStructures.RegulatoryFeature(dataStore.CurrentReferenceIndex, start, end, stableId, type));
         }
     }
 }

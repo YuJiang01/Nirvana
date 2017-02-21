@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
-using System.Text.RegularExpressions;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using VariantAnnotation.DataStructures;
 using ErrorHandling.Exceptions;
@@ -52,10 +51,9 @@ namespace CacheUtils.DataDumperImport.Import
         private const string UniParcKey                     = "_uniparc";
         private const string VariationEffectFeatureCacheKey = "_variation_effect_feature_cache";
         internal const string VersionKey                    = "version";
+        private const string VepLazyLoadedKey               = "_vep_lazy_loaded";
 
         private static readonly HashSet<string> KnownKeys;
-
-        private static readonly Regex TranslationReferenceRegex;
 
         #endregion
 
@@ -102,10 +100,9 @@ namespace CacheUtils.DataDumperImport.Import
                 TremblKey,
                 UniParcKey,
                 VariationEffectFeatureCacheKey,
-                VersionKey
+                VersionKey,
+                VepLazyLoadedKey
             };
-
-            TranslationReferenceRegex = new Regex("\\$VAR1->{'[^']+?'}\\[(\\d+)\\][,]?", RegexOptions.Compiled);
         }
 
         /// <summary>
@@ -113,17 +110,12 @@ namespace CacheUtils.DataDumperImport.Import
         /// </summary>
         public static void Parse(ObjectValue objectValue, int transcriptIndex, ImportDataStore dataStore)
         {
-            // Console.WriteLine("*** Parse {0} ***", transcriptIndex + 1);
+            var bioType = BioType.Unknown;
 
-            var bioType          = BioType.Unknown;
-            var geneSymbolSource = GeneSymbolSource.Unknown; // HGNC
-
-            SimpleInterval[] microRnas                                = null;
-			DataStructures.VEP.Exon[] transExons                            = null;
-            DataStructures.VEP.Gene gene                                    = null;
-            DataStructures.VEP.Translation translation                      = null;
-            DataStructures.VEP.VariantEffectFeatureCache variantEffectCache = null;
-            DataStructures.VEP.Slice slice                                  = null;
+            SimpleInterval[] microRnas                                  = null;
+            DataStructures.Gene gene                                    = null;
+            DataStructures.Translation translation                      = null;
+            DataStructures.VariantEffectFeatureCache variantEffectCache = null;
 
             bool onReverseStrand = false;
             bool isCanonical     = false;
@@ -135,17 +127,13 @@ namespace CacheUtils.DataDumperImport.Import
             int end      = -1;
             byte version = 1;
 
-            string ccdsId       = null;
-            string databaseId   = null;
             string proteinId    = null;
-            string refSeqId     = null;
             string geneStableId = null;
             string stableId     = null;
 
-            string geneSymbol = null; // DDX11L1
-            int hgncId        = -1; // 37102
+            string geneSymbol = null;
+            int hgncId        = -1;
 
-            // loop over all of the key/value pairs in the transcript object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -172,6 +160,13 @@ namespace CacheUtils.DataDumperImport.Import
                     case SwissProtKey:
                     case TremblKey:
                     case UniParcKey:
+                    case VepLazyLoadedKey:
+                    case SliceKey:
+                    case TransExonArrayKey:
+                    case CcdsKey:
+                    case DbIdKey:
+                    case GeneSymbolSourceKey:
+                    case RefseqKey:
                         // not used
                         break;
                     case AttributesKey:
@@ -181,19 +176,11 @@ namespace CacheUtils.DataDumperImport.Import
                     case BiotypeKey:
                         bioType = TranscriptUtilities.GetBiotype(ad);
                         break;
-                    case CcdsKey:
-                        ccdsId = DumperUtilities.GetString(ad);
-                        if (ccdsId == "-" || ccdsId == "") ccdsId = null;
-                        break;
                     case CdnaCodingEndKey:
                         compDnaCodingEnd = DumperUtilities.GetInt32(ad);
                         break;
                     case CdnaCodingStartKey:
                         compDnaCodingStart = DumperUtilities.GetInt32(ad);
-                        break;
-                    case DbIdKey:
-                        databaseId = DumperUtilities.GetString(ad);
-                        if (databaseId == "-" || databaseId == "") databaseId = null;
                         break;
                     case EndKey:
                         end = DumperUtilities.GetInt32(ad);
@@ -209,9 +196,6 @@ namespace CacheUtils.DataDumperImport.Import
                     case GeneHgncKey: // older key
                         geneSymbol = DumperUtilities.GetString(ad);
                         if (geneSymbol == "-" || geneSymbol == "") geneSymbol = null;
-                        break;
-                    case GeneSymbolSourceKey:
-                        geneSymbolSource = TranscriptUtilities.GetGeneSymbolSource(ad);
                         break;
                     case GeneKey:
                         var geneNode = ad as ObjectKeyValue;
@@ -231,17 +215,6 @@ namespace CacheUtils.DataDumperImport.Import
                         proteinId = DumperUtilities.GetString(ad);
                         if (proteinId == "-" || proteinId == "") proteinId = null;
                         break;
-                    case RefseqKey:
-                        refSeqId = DumperUtilities.GetString(ad);
-                        if (refSeqId == "-" || refSeqId == "") refSeqId = null;
-                        break;
-                    case SliceKey:
-                        var sliceNode = ad as ObjectKeyValue;
-                        if (sliceNode != null)
-                        {
-                            slice = Slice.Parse(sliceNode.Value, dataStore.CurrentReferenceIndex);
-                        }
-                        break;
                     case StableIdKey:
                         stableId = DumperUtilities.GetString(ad);
                         if (stableId == "-" || stableId == "") stableId = null;
@@ -251,17 +224,6 @@ namespace CacheUtils.DataDumperImport.Import
                         break;
                     case StrandKey:
                         onReverseStrand = TranscriptUtilities.GetStrand(ad);
-                        break;
-                    case TransExonArrayKey:
-                        var exonsList = ad as ListObjectKeyValue;
-                        if (exonsList != null)
-                        {
-                            transExons = Exon.ParseList(exonsList.Values, dataStore);
-                        }
-                        else
-                        {
-                            throw new GeneralException($"Could not transform the AbstractData object into a ListObjectKeyValue: [{ad.GetType()}]");
-                        }
                         break;
                     case TranslationKey:
                         var translationNode = ad as ObjectKeyValue;
@@ -294,97 +256,9 @@ namespace CacheUtils.DataDumperImport.Import
                 }
             }
 
-            dataStore.Transcripts.Add(new DataStructures.VEP.Transcript(bioType, transExons, gene, translation, variantEffectCache, slice, 
-                onReverseStrand, isCanonical, compDnaCodingStart, compDnaCodingEnd, dataStore.CurrentReferenceIndex, start, end, 
-                ccdsId, databaseId, proteinId, refSeqId, geneStableId, stableId, geneSymbol, geneSymbolSource, hgncId, version, 
-                microRnas));
-        }
-
-        /// <summary>
-        /// points to a transcript that has already been created
-        /// </summary>
-        public static DataStructures.VEP.Transcript ParseReference(string reference, ImportDataStore dataStore)
-        {
-            var transcriptMatch = TranslationReferenceRegex.Match(reference);
-
-            if (!transcriptMatch.Success)
-            {
-                throw new GeneralException($"Unable to use the regular expression on the transcript reference string: [{reference}]");
-            }
-
-            int transcriptIndex;
-            if (!int.TryParse(transcriptMatch.Groups[1].Value, out transcriptIndex))
-            {
-                throw new GeneralException($"Unable to convert the transcript index from a string to an integer: [{transcriptMatch.Groups[1].Value}]");
-            }
-
-            // sanity check: make sure we have at least that many transcripts in our list
-            if (transcriptIndex < 0 || transcriptIndex >= dataStore.Transcripts.Count)
-            {
-                throw new GeneralException($"Unable to link the slice reference: transcript index: [{transcriptIndex}], current # of transcripts: [{dataStore.Transcripts.Count}]");
-            }
-
-            return dataStore.Transcripts[transcriptIndex];
-        }
-
-        /// <summary>
-        /// parses the relevant data from each transcript
-        /// </summary>
-        public static void ParseReferences(ObjectValue objectValue, int transcriptIndex, ImportDataStore dataStore)
-        {
-            // Console.WriteLine("*** ParseReferences {0} / {1} ***", transcriptIndex + 1, _tempTranscripts.Count);
-            var transcript = dataStore.Transcripts[transcriptIndex];
-
-            // loop over all of the key/value pairs in the transcript object
-            foreach (AbstractData ad in objectValue)
-            {
-                // skip undefined keys
-                if (DumperUtilities.IsUndefined(ad)) continue;
-
-                // handle each key
-                ReferenceKeyValue referenceKeyValue;
-
-                // references found in:
-                // 'transcript' -> '_variation_effect_feature_cache' -> 'introns' -> 'slice' has references
-                // 'transcript' -> 'gene' has references
-                // 'transcript' -> 'slice' has references
-                // 'transcript' -> '_trans_exon_array' -> [] has references
-                // 'transcript' -> 'translation'-> 'end_exon' has references
-                // 'transcript' -> 'translation'-> 'start_exon' has references
-                // 'transcript' -> 'translation'-> 'transcript' has references
-
-                switch (ad.Key)
-                {
-                    case GeneKey:
-                        // works well
-                        if (DumperUtilities.IsReference(ad))
-                        {
-                            referenceKeyValue = ad as ReferenceKeyValue;
-                            if (referenceKeyValue != null)
-                                transcript.Gene = Gene.ParseReference(referenceKeyValue.Value, dataStore);
-                        }
-                        break;
-                    case SliceKey:
-                        if (DumperUtilities.IsReference(ad))
-                        {
-                            referenceKeyValue = ad as ReferenceKeyValue;
-                            if (referenceKeyValue != null) transcript.Slice = Slice.ParseReference(referenceKeyValue.Value, dataStore);
-                        }
-                        break;
-                    case TransExonArrayKey:
-                        var exonsList = ad as ListObjectKeyValue;
-                        if (exonsList != null) Exon.ParseListReference(exonsList.Values, transcript.TransExons, dataStore);
-                        break;
-                    case TranslationKey:
-                        var translationNode = ad as ObjectKeyValue;
-                        if (translationNode != null) Translation.ParseReference(translationNode.Value, transcript.Translation, dataStore);
-                        break;
-                    case VariationEffectFeatureCacheKey:
-                        var cacheNode = ad as ObjectKeyValue;
-                        if (cacheNode != null) VariantEffectFeatureCache.ParseReference(cacheNode.Value, transcript.VariantEffectCache, dataStore);
-                        break;
-                }
-            }
+            dataStore.Transcripts.Add(new DataStructures.Transcript(bioType, gene, translation, variantEffectCache,
+                onReverseStrand, isCanonical, compDnaCodingStart, compDnaCodingEnd, dataStore.CurrentReferenceIndex,
+                start, end, proteinId, geneStableId, stableId, geneSymbol, hgncId, version, microRnas));
         }
     }
 }

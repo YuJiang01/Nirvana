@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace CacheUtils.DataDumperImport.DataStructures
+namespace CacheUtils.DataDumperImport.Parser
 {
     public abstract class AbstractData
     {

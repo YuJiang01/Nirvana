@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -41,11 +41,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each exon coordinate mapper object
         /// </summary>
-        public static DataStructures.VEP.Mapper Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        public static DataStructures.Mapper Parse(ObjectValue objectValue, ImportDataStore dataStore)
         {
-            var mapper = new DataStructures.VEP.Mapper();
+            var mapper = new DataStructures.Mapper();
 
-            // loop over all of the key/value pairs in the exon coordinate mapper object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -57,6 +56,10 @@ namespace CacheUtils.DataDumperImport.Import
                 // handle each key
                 switch (ad.Key)
                 {
+                    case PairCodingDnaKey:
+                    case PairCountKey:
+                    case IsSortedKey:
+                        break;
                     case FromCoordSystemKey:
                         if (!DumperUtilities.IsUndefined(ad))
                         {
@@ -65,28 +68,6 @@ namespace CacheUtils.DataDumperImport.Import
                         break;
                     case FromNameKey:
                         mapper.FromType = DumperUtilities.GetString(ad);
-                        break;
-                    case IsSortedKey:
-                        mapper.IsSorted = DumperUtilities.GetBool(ad);
-                        break;
-                    case PairCodingDnaKey:
-                        var pairCodingDnaNode = ad as ObjectKeyValue;
-                        if (pairCodingDnaNode != null)
-                        {
-                            mapper.PairCodingDna = PairCodingDna.Parse(pairCodingDnaNode.Value, dataStore);
-                        }
-                        else if (DumperUtilities.IsUndefined(ad))
-                        {
-                            mapper.PairCodingDna = null;
-                        }
-                        else
-                        {
-                            throw new GeneralException(
-                                $"Could not transform the AbstractData object into an ObjectKeyValue: [{ad.GetType()}]");
-                        }
-                        break;
-                    case PairCountKey:
-                        mapper.PairCount = DumperUtilities.GetInt32(ad);
                         break;
                     case PairGenomicKey:
                         var pairGenomicNode = ad as ObjectKeyValue;
@@ -119,28 +100,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return mapper;
-        }
-
-        /// <summary>
-        /// parses the relevant data from each mapper
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.Mapper mapper, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the mapper object
-            foreach (AbstractData ad in objectValue)
-            {
-                switch (ad.Key)
-                {
-                    case PairCodingDnaKey:
-                        var pairCodingDnaNode = ad as ObjectKeyValue;
-                        if (pairCodingDnaNode != null) PairCodingDna.ParseReference(pairCodingDnaNode.Value, mapper.PairCodingDna, dataStore);
-                        break;
-                    case PairGenomicKey:
-                        var pairGenomicNode = ad as ObjectKeyValue;
-                        if (pairGenomicNode != null) PairGenomic.ParseReference(pairGenomicNode.Value, mapper.PairGenomic, dataStore);
-                        break;
-                }
-            }
         }
     }
 }

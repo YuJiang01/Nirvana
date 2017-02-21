@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CacheUtils.DataDumperImport.DataStructures;
-using CacheUtils.DataDumperImport.DataStructures.VEP;
 using CacheUtils.DataDumperImport.FileHandling;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using VariantAnnotation.DataStructures;
 using ErrorHandling.Exceptions;
-using Exon              = CacheUtils.DataDumperImport.DataStructures.VEP.Exon;
 using Gene              = VariantAnnotation.DataStructures.Gene;
-using Intron            = CacheUtils.DataDumperImport.DataStructures.VEP.Intron;
 using RegulatoryFeature = CacheUtils.DataDumperImport.Import.RegulatoryFeature;
 using SimpleInterval    = VariantAnnotation.DataStructures.SimpleInterval;
-using Translation       = CacheUtils.DataDumperImport.DataStructures.VEP.Translation;
+using Transcript = CacheUtils.DataDumperImport.DataStructures.Transcript;
+using Translation       = CacheUtils.DataDumperImport.DataStructures.Translation;
 
 namespace CacheUtils.ParseVepCacheDirectory
 {
@@ -25,14 +24,13 @@ namespace CacheUtils.ParseVepCacheDirectory
         private readonly ImportDataStore _nonUniquedataStore;
         private readonly ImportDataStore _uniqueDataStore;
 
-        private const string MotifFeatureKey = "MotifFeature";
+        private const string MotifFeatureKey      = "MotifFeature";
         private const string RegulatoryFeatureKey = "RegulatoryFeature";
 
         private readonly FeatureStatistics _transcriptStatistics;
         private readonly FeatureStatistics _regulatoryStatistics;
         private readonly FeatureStatistics _geneStatistics;
         private readonly FeatureStatistics _intronStatistics;
-        private readonly FeatureStatistics _exonStatistics;
         private readonly FeatureStatistics _mirnaStatistics;
         private readonly FeatureStatistics _siftStatistics;
         private readonly FeatureStatistics _polyphenStatistics;
@@ -40,7 +38,6 @@ namespace CacheUtils.ParseVepCacheDirectory
         private readonly FeatureStatistics _peptideStatistics;
 
         private int _currentGeneIndexOffset;
-        private int _currentExonIndexOffset;
         private int _currentIntronIndexOffset;
         private int _currentMicroRnaIndexOffset;
         private int _currentCdnaIndexOffset;
@@ -63,7 +60,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             _transcriptStatistics = new FeatureStatistics("Transcripts");
             _geneStatistics       = new FeatureStatistics("Genes");
             _intronStatistics     = new FeatureStatistics("Introns");
-            _exonStatistics       = new FeatureStatistics("Exons");
             _mirnaStatistics      = new FeatureStatistics("miRNAs");
             _siftStatistics       = new FeatureStatistics("SIFT matrices");
             _polyphenStatistics   = new FeatureStatistics("PolyPhen matrices");
@@ -104,13 +100,11 @@ namespace CacheUtils.ParseVepCacheDirectory
 
         #region NULL finding
 
-        private static void FindNulls(DataDumperImport.DataStructures.VEP.Transcript transcript)
+        private static void FindNulls(Transcript transcript)
         {
             bool foundError = transcript.BioType == BioType.Unknown ||
-                              transcript.TransExons == null ||
                               transcript.Gene == null ||
-                              transcript.VariantEffectCache == null ||
-                              transcript.Slice == null;
+                              transcript.VariantEffectCache == null;
 
             if (foundError)
             {
@@ -120,43 +114,18 @@ namespace CacheUtils.ParseVepCacheDirectory
 
             // search deeper
             if (transcript.Translation != null) FindNulls(transcript.Translation);
-            FindNulls(transcript.TransExons);
             FindNulls(transcript.VariantEffectCache);
-            FindNulls(transcript.Slice);
-        }
-
-        private static void FindNulls(Slice slice)
-        {
-            bool foundError = slice.CoordinateSystem == null;
-
-            if (foundError)
-            {
-                Console.WriteLine(slice);
-                throw new GeneralException("Found a null object in the slice.");
-            }
         }
 
         private static void FindNulls(Translation translation)
         {
-            bool foundError = translation.EndExon == null ||
-                              translation.StartExon == null ||
-                              translation.Transcript == null;
+            bool foundError = translation.EndExon   == null ||
+                              translation.StartExon == null;
 
             if (foundError)
             {
                 Console.WriteLine(translation);
                 throw new GeneralException("Found a null object in the translation.");
-            }
-        }
-
-        private static void FindNulls(Exon[] exons)
-        {
-            for (int i = 0; i < exons.Length; i++)
-            {
-                if (exons[i] == null)
-                {
-                    throw new GeneralException($"Found a null object in the exon {i}.");
-                }
             }
         }
 
@@ -171,7 +140,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             }
 
             // search deeper
-            if (cache.Introns != null) foreach (var intron in cache.Introns) FindNulls(intron);
             FindNulls(cache.Mapper);
         }
 
@@ -184,20 +152,6 @@ namespace CacheUtils.ParseVepCacheDirectory
                 Console.WriteLine(mapper);
                 throw new GeneralException("Found a null object in the transcript mapper.");
             }
-        }
-
-        private static void FindNulls(Intron intron)
-        {
-            bool foundError = intron.Slice == null;
-
-            if (foundError)
-            {
-                Console.WriteLine(intron);
-                throw new GeneralException("Found a null object in the intron.");
-            }
-
-            // search deeper
-            FindNulls(intron.Slice);
         }
 
         #endregion
@@ -213,37 +167,30 @@ namespace CacheUtils.ParseVepCacheDirectory
 
             if (referenceSequenceNode != null)
             {
-                // loop over each reference sequence
                 foreach (AbstractData ad in referenceSequenceNode)
                 {
                     var transcriptNodes = ad as ListObjectKeyValue;
+                    if (transcriptNodes == null) continue;
 
-                    if (transcriptNodes != null)
+                    int transcriptIndex = 0;
+                    foreach (AbstractData abTranscriptNode in transcriptNodes)
                     {
-                        // loop over each transcript
-                        int transcriptIndex = 0;
-                        foreach (AbstractData abTranscriptNode in transcriptNodes)
+                        var transcriptNode = abTranscriptNode as ObjectValue;
+
+                        // sanity check: make sure this node is an object value
+                        if (transcriptNode == null)
                         {
-                            // Console.WriteLine("transcript index: {0}", transcriptIndex);
-                            var transcriptNode = abTranscriptNode as ObjectValue;
-
-                            // sanity check: make sure this node is an object value
-                            if (transcriptNode == null)
-                            {
-                                Console.WriteLine("Expected a transcript object value node, but the current node is not an object value.");
-                                Environment.Exit(1);
-                            }
-
-                            // sanity check: make sure this is a transcript data type
-                            if (transcriptNode.DataType != DataDumperImport.Import.Transcript.DataType)
-                            {
-                                Console.WriteLine("Expected a transcript node, but the current data type is: [{0}]", transcriptNode.DataType);
-                                Environment.Exit(1);
-                            }
-
-                            parser(transcriptNode, transcriptIndex, _tempDataStore);
-                            transcriptIndex++;
+                            throw new NullReferenceException("Expected a transcript object value node, but the current node is not an object value.");
                         }
+
+                        // sanity check: make sure this is a transcript data type
+                        if (transcriptNode.DataType != DataDumperImport.Import.Transcript.DataType)
+                        {
+                            throw new InvalidOperationException($"Expected a transcript node, but the current data type is: [{transcriptNode.DataType}]");
+                        }
+
+                        parser(transcriptNode, transcriptIndex, _tempDataStore);
+                        transcriptIndex++;
                     }
                 }
             }
@@ -262,7 +209,7 @@ namespace CacheUtils.ParseVepCacheDirectory
                 foreach (AbstractData ad in referenceSequenceNode)
                 {
                     var objectKeyValue = ad as ObjectKeyValue;
-                    if (objectKeyValue == null) throw new GeneralException("Unable to cast AbstractData as ObjectKeyValue");
+                    if (objectKeyValue == null) continue;
 
                     foreach (AbstractData featureGroup in objectKeyValue.Value)
                     {
@@ -291,7 +238,6 @@ namespace CacheUtils.ParseVepCacheDirectory
 
             if (regulatoryFeatureNodes != null)
             {
-                // loop over each regulatory element
                 int regulatoryFeatureIndex = 0;
                 foreach (AbstractData abRegulatoryFeatureNode in regulatoryFeatureNodes)
                 {
@@ -300,15 +246,13 @@ namespace CacheUtils.ParseVepCacheDirectory
                     // sanity check: make sure this node is an object value
                     if (regulatoryFeatureNode == null)
                     {
-                        Console.WriteLine("Expected a regulatory element object value node, but the current node is not an object value.");
-                        Environment.Exit(1);
+                        throw new NullReferenceException("Expected a regulatory element object value node, but the current node is not an object value.");
                     }
 
                     // sanity check: make sure this is a regulatory element data type
                     if (regulatoryFeatureNode.DataType != RegulatoryFeature.DataType)
                     {
-                        Console.WriteLine("Expected a regulatory element node, but the current data type is: [{0}]", regulatoryFeatureNode.DataType);
-                        Environment.Exit(1);
+                        throw new InvalidOperationException($"Expected a regulatory element node, but the current data type is: [{regulatoryFeatureNode.DataType}]");
                     }
 
                     parser(regulatoryFeatureNode, regulatoryFeatureIndex, _tempDataStore);
@@ -333,11 +277,7 @@ namespace CacheUtils.ParseVepCacheDirectory
 
             using (var reader = new DataDumperReader(dumpPath))
             {
-                // first pass: initial parsing
                 ParseTranscriptDumpFilePass(reader, DataDumperImport.Import.Transcript.Parse);
-
-                // second pass: setting references
-                ParseTranscriptDumpFilePass(reader, DataDumperImport.Import.Transcript.ParseReferences);
 
                 // sanity check: look for null elements in the transcripts
                 foreach (var transcript in _tempDataStore.Transcripts) FindNulls(transcript);
@@ -365,7 +305,7 @@ namespace CacheUtils.ParseVepCacheDirectory
         }
 
         public void ParseDumpDirectory(ushort refIndex, string refSeqDirectory, StreamWriter transcriptWriter,
-            StreamWriter regulatoryWriter, StreamWriter geneWriter, StreamWriter intronWriter, StreamWriter exonWriter,
+            StreamWriter regulatoryWriter, StreamWriter geneWriter, StreamWriter intronWriter,
             StreamWriter mirnaWriter, BinaryWriter siftWriter, BinaryWriter polyphenWriter, StreamWriter cdnaWriter,
             StreamWriter peptideWriter)
         {
@@ -396,10 +336,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             var introns = ExtractIntrons();
             var intronIndices = GetIndices(introns, _currentIntronIndexOffset);
 
-            // calculate the exon indices
-            var exons = ExtractExons();
-            var exonIndices = GetIndices(exons, _currentExonIndexOffset);
-
             // calculate the miRNA indices
             var mirnas = ExtractMicroRnas();
             var mirnaIndices = GetIndices(mirnas, _currentMicroRnaIndexOffset);
@@ -424,7 +360,7 @@ namespace CacheUtils.ParseVepCacheDirectory
             ConvertCdnaMaps();
 
             // dump the data from our temporary data stores to the writer
-            AddIndicesToTranscripts(geneIndices, intronIndices, exonIndices, mirnaIndices, siftIndices, polyphenIndices,
+            AddIndicesToTranscripts(geneIndices, intronIndices, mirnaIndices, siftIndices, polyphenIndices,
                 cdnaIndices, peptideIndices);
 
             Console.WriteLine();
@@ -437,19 +373,15 @@ namespace CacheUtils.ParseVepCacheDirectory
             SerializeRegulatoryData(regulatoryWriter);
 
             // dump the genes to the writer
-            SerializeData("genes", geneWriter, genes);
+            SerializeData("genes", geneWriter, genes, _currentGeneIndexOffset);
             _currentGeneIndexOffset += genes.Count;
 
             // dump the introns to the writer
-            SerializeData("introns", intronWriter, introns);
+            SerializeData("introns", intronWriter, introns, _currentIntronIndexOffset);
             _currentIntronIndexOffset += introns.Count;
 
-            // dump the exons to the writer
-            SerializeData("exons", exonWriter, exons);
-            _currentExonIndexOffset += exons.Count;
-
             // dump the miRNAs to the writer
-            SerializeData("miRNAs", mirnaWriter, mirnas);
+            SerializeData("miRNAs", mirnaWriter, mirnas, _currentMicroRnaIndexOffset);
             _currentMicroRnaIndexOffset += mirnas.Count;
 
             // dump the Sifts to the writer
@@ -459,11 +391,11 @@ namespace CacheUtils.ParseVepCacheDirectory
             SerializeProteinFunctionPrediction("PolyPhens", polyphenWriter, polyphens, _uniqueDataStore.CurrentReferenceIndex);
 
             // dump the cDNA seqs to the writer
-            SerializeData("cDNA seqs", cdnaWriter, cdnaSeqs);
+            SerializeData("cDNA seqs", cdnaWriter, cdnaSeqs, _currentCdnaIndexOffset);
             _currentCdnaIndexOffset += cdnaSeqs.Count;
 
             // dump the peptide seqs to the writer
-            SerializeData("peptide seqs", peptideWriter, peptideSeqs);
+            SerializeData("peptide seqs", peptideWriter, peptideSeqs, _currentPeptideIndexOffset);
             _currentPeptideIndexOffset += peptideSeqs.Count;
 
             // delete all of the master data
@@ -526,21 +458,14 @@ namespace CacheUtils.ParseVepCacheDirectory
         }
 
         private void AddIndicesToTranscripts(Dictionary<Gene, int> geneIndices,
-            Dictionary<SimpleInterval, int> intronIndices, Dictionary<LegacyExon, int> exonIndices,
-            Dictionary<SimpleInterval, int> mirnaIndices, Dictionary<string, int> siftIndices,
-            Dictionary<string, int> polyphenIndices, Dictionary<string, int> cdnaIndices,
-            Dictionary<string, int> peptideIndices)
+            Dictionary<SimpleInterval, int> intronIndices, Dictionary<SimpleInterval, int> mirnaIndices,
+            Dictionary<string, int> siftIndices, Dictionary<string, int> polyphenIndices,
+            Dictionary<string, int> cdnaIndices, Dictionary<string, int> peptideIndices)
         {
             foreach (var transcript in _uniqueDataStore.Transcripts)
             {
-                transcript.GeneIndex = GetIndex("gene", transcript.StableId, transcript.FinalGene, geneIndices);
-
-                transcript.ExonIndices = new int[transcript.FinalExons.Length];
-                for (int i = 0; i < transcript.FinalExons.Length; i++)
-                {
-                    transcript.ExonIndices[i] = GetIndex("exon", transcript.StableId, transcript.FinalExons[i],
-                        exonIndices);
-                }
+                transcript.GeneIndex = GetIndex("gene", transcript.StableId, transcript.FinalGene, geneIndices,
+                    _currentGeneIndexOffset);
 
                 if (transcript.FinalIntrons != null)
                 {
@@ -548,7 +473,7 @@ namespace CacheUtils.ParseVepCacheDirectory
                     for (int i = 0; i < transcript.FinalIntrons.Length; i++)
                     {
                         transcript.IntronIndices[i] = GetIndex("intron", transcript.StableId, transcript.FinalIntrons[i],
-                            intronIndices);
+                            intronIndices, _currentIntronIndexOffset);
                     }
                 }
 
@@ -558,33 +483,33 @@ namespace CacheUtils.ParseVepCacheDirectory
                     for (int i = 0; i < transcript.FinalMicroRnas.Length; i++)
                     {
                         transcript.MicroRnaIndices[i] = GetIndex("miRNA", transcript.StableId, transcript.FinalMicroRnas[i],
-                            mirnaIndices);
+                            mirnaIndices, _currentMicroRnaIndexOffset);
                     }
                 }
 
                 if (transcript.VariantEffectCache?.ProteinFunctionPredictions?.Sift?.Matrix != null)
                 {
-                    transcript.SiftIndex = GetIndex("Sift", transcript.StableId, transcript.VariantEffectCache.ProteinFunctionPredictions.Sift.Matrix, siftIndices);
+                    transcript.SiftIndex = GetIndex("Sift", transcript.StableId, transcript.VariantEffectCache.ProteinFunctionPredictions.Sift.Matrix, siftIndices, 0);
                 }
 
                 if (transcript.VariantEffectCache?.ProteinFunctionPredictions?.PolyPhen?.Matrix != null)
                 {
-                    transcript.PolyPhenIndex = GetIndex("PolyPhen", transcript.StableId, transcript.VariantEffectCache.ProteinFunctionPredictions.PolyPhen.Matrix, polyphenIndices);
+                    transcript.PolyPhenIndex = GetIndex("PolyPhen", transcript.StableId, transcript.VariantEffectCache.ProteinFunctionPredictions.PolyPhen.Matrix, polyphenIndices, 0);
                 }
 
                 if (transcript.VariantEffectCache?.TranslateableSeq != null)
                 {
-                    transcript.CdnaSeqIndex = GetIndex("cDNA", transcript.StableId, transcript.VariantEffectCache.TranslateableSeq, cdnaIndices);
+                    transcript.CdnaSeqIndex = GetIndex("cDNA", transcript.StableId, transcript.VariantEffectCache.TranslateableSeq, cdnaIndices, _currentCdnaIndexOffset);
                 }
 
                 if (transcript.VariantEffectCache?.Peptide != null)
                 {
-                    transcript.PeptideSeqIndex = GetIndex("Peptide", transcript.StableId, transcript.VariantEffectCache.Peptide, peptideIndices);
+                    transcript.PeptideSeqIndex = GetIndex("Peptide", transcript.StableId, transcript.VariantEffectCache.Peptide, peptideIndices, _currentPeptideIndexOffset);
                 }
             }
         }
 
-        private static int GetIndex<T>(string description, string id, T key, Dictionary<T, int> indices)
+        private static int GetIndex<T>(string description, string id, T key, Dictionary<T, int> indices, int offset)
         {
             int index;
             if (!indices.TryGetValue(key, out index))
@@ -592,7 +517,7 @@ namespace CacheUtils.ParseVepCacheDirectory
                 throw new GeneralException($"Unable to find the {description} in {id}");
             }
 
-            return index;
+            return index + offset;
         }
 
         /// <summary>
@@ -612,31 +537,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             _geneStatistics.Increment(genes.Count, numAdded);
 
             return genes.OrderBy(x => x.ReferenceIndex).ThenBy(x => x.Start).ThenBy(x => x.End).ToList();
-        }
-
-        private List<LegacyExon> ExtractExons()
-        {
-            var exonSet = new HashSet<LegacyExon>();
-            int numAdded = 0;
-
-            foreach (var transcript in _uniqueDataStore.Transcripts)
-            {
-                var exons = new List<LegacyExon>();
-
-                foreach (var exon in transcript.TransExons)
-                {
-                    var newExon = exon.Convert();
-                    exons.Add(newExon);
-                    exonSet.Add(newExon);
-                    numAdded++;
-                }
-
-                transcript.FinalExons = exons.OrderBy(x => x.Start).ThenBy(x => x.End).ToArray();
-            }
-
-            _exonStatistics.Increment(exonSet.Count, numAdded);
-
-            return exonSet.OrderBy(x => x.Start).ThenBy(x => x.End).ToList();
         }
 
         private List<SimpleInterval> ExtractIntrons()
@@ -846,14 +746,14 @@ namespace CacheUtils.ParseVepCacheDirectory
         /// <summary>
         /// serializes all the list values to the writer
         /// </summary>
-        private static void SerializeData<T>(string description, StreamWriter writer, List<T> values)
+        private static void SerializeData<T>(string description, StreamWriter writer, List<T> values, int offset)
         {
             Console.Write("- serializing {0}... ", description);
 
             int numValues = values.Count;
             for (int i = 0; i < numValues; i++)
             {
-                writer.WriteLine($"{i}\t{values[i]}");
+                writer.WriteLine($"{i + offset}\t{values[i]}");
             }
 
             writer.Flush();
@@ -866,6 +766,7 @@ namespace CacheUtils.ParseVepCacheDirectory
         private static void SerializeProteinFunctionPrediction(string description, BinaryWriter writer, List<string> matrices, ushort refIndex)
         {
             Console.Write("- serializing {0}... ", description);
+            writer.Write(matrices.Count);
             foreach (var matrix in matrices) ProteinFunctionPredictions.Serialize(writer, matrix, refIndex);
             writer.Flush();
             Console.WriteLine("{0} matrices written.", matrices.Count);
@@ -883,7 +784,6 @@ namespace CacheUtils.ParseVepCacheDirectory
             Console.WriteLine(_transcriptStatistics);
             Console.WriteLine(_geneStatistics);
             Console.WriteLine(_intronStatistics);
-            Console.WriteLine(_exonStatistics);
             Console.WriteLine(_mirnaStatistics);
             Console.WriteLine(_siftStatistics);
             Console.WriteLine(_polyphenStatistics);

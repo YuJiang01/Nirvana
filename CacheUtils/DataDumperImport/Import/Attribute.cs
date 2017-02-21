@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using VariantAnnotation.DataStructures;
 using ErrorHandling.Exceptions;
@@ -44,9 +44,6 @@ namespace CacheUtils.DataDumperImport.Import
 
             foreach (var ad in abstractDataList)
             {
-                // skip references
-                if (DumperUtilities.IsReference(ad)) continue;
-
                 var objectValue = ad as ObjectValue;
 
                 if (objectValue != null)
@@ -54,17 +51,7 @@ namespace CacheUtils.DataDumperImport.Import
                     var newMicroRna = Parse(objectValue);
                     if (newMicroRna != null)
                     {
-                        // MicroRna oldMicroRna;
-
-                        // if (dataStore.MicroRnas.TryGetValue(newMicroRna, out oldMicroRna))
-                        //{
-                        //    microRnas.Add(oldMicroRna);
-                        //}
-                        // else
-                        //{
-                            microRnas.Add(newMicroRna);
-                            // dataStore.MicroRnas[newMicroRna] = newMicroRna;
-                        //}
+                        microRnas.Add(newMicroRna);
                     }
                 }
                 else
@@ -85,7 +72,6 @@ namespace CacheUtils.DataDumperImport.Import
             string key   = null;
             string value = null;
 
-            // loop over all of the key/value pairs in the gene object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -116,7 +102,6 @@ namespace CacheUtils.DataDumperImport.Import
             // sanity check: make sure this is a miRNA object
             if (key != "miRNA" || value == null)
             {
-                // Console.WriteLine("DEBUG: Found alternate attribute: {0}", key);
                 return null;
             }
 

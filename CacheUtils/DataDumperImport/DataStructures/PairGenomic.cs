@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using VariantAnnotation.DataStructures;
 
-namespace CacheUtils.DataDumperImport.DataStructures.VEP
+namespace CacheUtils.DataDumperImport.DataStructures
 {
     public sealed class PairGenomic
     {

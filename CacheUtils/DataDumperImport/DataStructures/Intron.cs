@@ -1,13 +1,11 @@
 ﻿using VariantAnnotation.DataStructures;
 
-namespace CacheUtils.DataDumperImport.DataStructures.VEP
+namespace CacheUtils.DataDumperImport.DataStructures
 {
     public sealed class Intron
     {
         public int Start;
         public int End;
-
-        public Slice Slice = null;
 
         /// <summary>
         /// converts the current VEP exon into a Nirvana exon 

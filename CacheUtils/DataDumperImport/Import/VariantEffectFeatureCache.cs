@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using CacheUtils.DataDumperImport.DataStructures;
+using CacheUtils.DataDumperImport.Parser;
 using CacheUtils.DataDumperImport.Utilities;
 using ErrorHandling.Exceptions;
 
@@ -47,11 +47,10 @@ namespace CacheUtils.DataDumperImport.Import
         /// <summary>
         /// parses the relevant data from each variant effect feature cache
         /// </summary>
-        public static DataStructures.VEP.VariantEffectFeatureCache Parse(ObjectValue objectValue, ImportDataStore dataStore)
+        public static DataStructures.VariantEffectFeatureCache Parse(ObjectValue objectValue, ImportDataStore dataStore)
         {
-            var cache = new DataStructures.VEP.VariantEffectFeatureCache();
+            var cache = new DataStructures.VariantEffectFeatureCache();
 
-            // loop over all of the key/value pairs in the cache object
             foreach (AbstractData ad in objectValue)
             {
                 // sanity check: make sure we know about the keys are used for
@@ -64,6 +63,7 @@ namespace CacheUtils.DataDumperImport.Import
                 // handle each key
                 switch (ad.Key)
                 {
+                    case SortedExonsKey:
                     case SelenocysteinesKey:
                     case ThreePrimeUtrKey:
                     case SeqEditsKey:
@@ -75,7 +75,7 @@ namespace CacheUtils.DataDumperImport.Import
                         var intronsList = ad as ListObjectKeyValue;
                         if (intronsList != null)
                         {
-                            cache.Introns = Intron.ParseList(intronsList.Values, dataStore);
+                            cache.Introns = Intron.ParseList(intronsList.Values);
                         }
                         else if (DumperUtilities.IsUndefined(ad))
                         {
@@ -108,23 +108,6 @@ namespace CacheUtils.DataDumperImport.Import
                         {
                             cache.ProteinFunctionPredictions = ProteinFunctionPredictions.Parse(predictionsNode.Value);
                         }
-                        else
-                        {
-                            throw new GeneralException(
-                                $"Could not transform the AbstractData object into an ObjectKeyValue: [{ad.GetType()}]");
-                        }
-
-                        break;
-                    case SortedExonsKey:
-                        var exonsList = ad as ListObjectKeyValue;
-                        if (exonsList != null)
-                        {
-                            cache.Exons = Exon.ParseList(exonsList.Values, dataStore);
-                        }
-                        else
-                        {
-                            throw new GeneralException($"Could not transform the AbstractData object into a ListObjectKeyValue: [{ad.GetType()}]");
-                        }
                         break;
                     case TranslateableSeqKey:
                         cache.TranslateableSeq = DumperUtilities.GetString(ad);
@@ -135,38 +118,6 @@ namespace CacheUtils.DataDumperImport.Import
             }
 
             return cache;
-        }
-
-        /// <summary>
-        /// parses the relevant data from each variant effect feature cache
-        /// </summary>
-        public static void ParseReference(ObjectValue objectValue, DataStructures.VEP.VariantEffectFeatureCache cache, ImportDataStore dataStore)
-        {
-            // loop over all of the key/value pairs in the cache object
-            foreach (AbstractData ad in objectValue)
-            {
-                switch (ad.Key)
-                {
-                    case IntronsKey:
-                        var intronsList = ad as ListObjectKeyValue;
-                        if (intronsList != null) Intron.ParseListReference(intronsList.Values, cache.Introns, dataStore);
-                        break;
-                    case MapperKey:
-                        var mapperNode = ad as ObjectKeyValue;
-                        if (mapperNode != null)
-                        {
-                            TranscriptMapper.ParseReference(mapperNode.Value, cache.Mapper, dataStore);
-                        }
-                        break;
-                    case ProteinFunctionPredictionsKey:
-                        var predictionsNode = ad as ObjectKeyValue;
-                        if (predictionsNode != null)
-                        {
-                            ProteinFunctionPredictions.ParseReference(predictionsNode.Value, cache.ProteinFunctionPredictions, dataStore);
-                        }
-                        break;
-                }
-            }
         }
     }
 }

@@ -2,7 +2,7 @@
 using System.IO;
 using ErrorHandling.Exceptions;
 
-namespace CacheUtils.DataDumperImport.DataStructures.VEP
+namespace CacheUtils.DataDumperImport.DataStructures
 {
     public sealed class ProteinFunctionPredictions
     {

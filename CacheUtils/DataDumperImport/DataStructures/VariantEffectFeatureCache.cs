@@ -1,9 +1,8 @@
-﻿namespace CacheUtils.DataDumperImport.DataStructures.VEP
+﻿namespace CacheUtils.DataDumperImport.DataStructures
 {
     public sealed class VariantEffectFeatureCache
     {
         public Intron[] Introns                                      = null;
-        public Exon[] Exons                                          = null;
         public ProteinFunctionPredictions ProteinFunctionPredictions = null;
         public TranscriptMapper Mapper                               = null;
 
