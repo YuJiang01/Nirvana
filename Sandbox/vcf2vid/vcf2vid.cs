@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
 using ErrorHandling.Exceptions;
-using GffComparison;
 using NDesk.Options;
 using VariantAnnotation.CommandLine;
 using VariantAnnotation.DataStructures;
@@ -21,17 +21,12 @@ namespace vcf2vid
                     "ref|r=",
                     "input compressed reference sequence {path}",
                     v => ConfigurationSettings.CompressedReferencePath = v
-                },
-                {
-                    "vcf=",
-                    "vcf {line}",
-                    v => ConfigurationSettings.VcfLine = v
-                },
+                }
             };
 
-            var commandLineExample = "-r <reference path> --vcf <vcf line>";
+            var commandLineExample = "-r <reference path> < input.vcf";
 
-            var vid = new Vcf2Vid("Generates VIDs given a VCF line", ops, commandLineExample, Constants.Authors);
+            var vid = new Vcf2Vid("Parses a VCF and displays tab-delimited VIDs for each alternate allele", ops, commandLineExample, Constants.Authors);
             vid.Execute(args);
             return vid.ExitCode;
         }
@@ -41,7 +36,9 @@ namespace vcf2vid
         /// </summary>
         private Vcf2Vid(string programDescription, OptionSet ops, string commandLineExample, string programAuthors)
             : base(programDescription, ops, commandLineExample, programAuthors)
-        { }
+        {
+            DisableConsoleOutput();
+        }
 
         /// <summary>
         /// validates the command line
@@ -49,7 +46,6 @@ namespace vcf2vid
         protected override void ValidateCommandLine()
         {
             CheckInputFilenameExists(ConfigurationSettings.CompressedReferencePath, "reference", "--ref");
-            HasRequiredParameter(ConfigurationSettings.VcfLine, "vcf line", "--vcf");
         }
 
         /// <summary>
@@ -57,25 +53,70 @@ namespace vcf2vid
         /// </summary>
         protected override void ProgramExecution()
         {
-            CompressedSequence compressedSequence;
-            DataFileManager dataFileManager;
-
-            using (var reader = FileUtilities.GetReadStream(ConfigurationSettings.CompressedReferencePath))
+            if (!Console.IsInputRedirected)
             {
-                compressedSequence           = new CompressedSequence();
-                var compressedSequenceReader = new CompressedSequenceReader(reader, compressedSequence);
-                dataFileManager              = new DataFileManager(compressedSequenceReader, compressedSequence);
+                CommandLineUtilities.DisplayBanner(Constants.Authors);
+                OutputHelper.WriteLabel("USAGE: ");
+                Console.WriteLine("{0} {1}", OutputHelper.GetExecutableName(), "< input.vcf");
+                Console.WriteLine("Parses a VCF and displays tab-delimited VIDs for each alternate allele");
+                ExitCode = 1;
+                return;
             }
 
-            var vid            = new VID();
-            var variant        = CreateVcfVariant(ConfigurationSettings.VcfLine);
-            var variantFeature = new VariantFeature(variant, compressedSequence.Renamer, vid);
+            var vid  = new VID();
+            var vids = new List<string>();
 
-            // load the reference sequence
-            dataFileManager.LoadReference(variantFeature.ReferenceIndex, () => {});
+            using (var refReader  = FileUtilities.GetReadStream(ConfigurationSettings.CompressedReferencePath))
+            using (var peekStream = new PeekStream(Console.OpenStandardInput()))
+            using (var reader     = new LiteVcfReader(GZipUtilities.GetAppropriateStream(peekStream)))
+            {
+                var compressedSequence       = new CompressedSequence();
+                var compressedSequenceReader = new CompressedSequenceReader(refReader, compressedSequence);
+                var dataFileManager          = new DataFileManager(compressedSequenceReader, compressedSequence);
 
-            variantFeature.AssignAlternateAlleles();
-            foreach(var altAllele in variantFeature.AlternateAlleles) Console.WriteLine(altAllele.VariantId);
+                while (true)
+                {
+                    string vcfLine = reader.ReadLine();
+                    if (vcfLine == null) break;
+
+                    var variant        = CreateVcfVariant(vcfLine);
+                    var variantFeature = new VariantFeature(variant, compressedSequence.Renamer, vid);
+
+                    CheckRefNoCall(variantFeature);
+
+                    // load the reference sequence
+                    dataFileManager.LoadReference(variantFeature.ReferenceIndex, () => { });
+
+                    variantFeature.AssignAlternateAlleles();
+                    
+                    if (variantFeature.IsReference && !variantFeature.IsRefNoCall)
+                    {
+                        var refAllele = new VariantAlternateAllele(variantFeature.VcfReferenceBegin,
+                            variantFeature.VcfReferenceEnd, variantFeature.EnsemblReferenceName,
+                            variantFeature.VcfRefAllele);
+                        var refVid = vid.Create(compressedSequence.Renamer, variantFeature.EnsemblReferenceName,
+                            refAllele);
+                        Console.WriteLine(refVid);
+                    }
+                    else
+                    {
+                        vids.Clear();
+                        foreach (var altAllele in variantFeature.AlternateAlleles)
+                        {
+                            vids.Add(altAllele.VariantId);
+                        }
+
+                        Console.WriteLine(string.Join("\t", vids));
+                    }
+                }
+            }
+        }
+
+        private static void CheckRefNoCall(VariantFeature variant)
+        {
+            if (!variant.IsReference) return;
+            if (variant.PassFilter()) return;
+            variant.IsRefNoCall = true;
         }
 
         private static VcfVariant CreateVcfVariant(string vcfLine)

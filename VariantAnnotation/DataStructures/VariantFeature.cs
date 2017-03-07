@@ -20,11 +20,11 @@ namespace VariantAnnotation.DataStructures
         // basic variant information
         public string ReferenceName { get; private set; }
         public string UcscReferenceName { get; private set; }
-        private string EnsemblReferenceName { get; set; }
+        public string EnsemblReferenceName { get; private set; }
         public ushort ReferenceIndex { get; private set; }
         public int VcfReferenceBegin { get; private set; }
         public int VcfReferenceEnd { get; private set; }
-        private string VcfRefAllele { get; set; }
+        public string VcfRefAllele { get; private set; }
         private string VcfVariantId { get; set; }
 
         // defines the interval that should be used when looking for overlapping annotations
@@ -48,7 +48,7 @@ namespace VariantAnnotation.DataStructures
         // variant flags
         public bool IsReference { get; private set; }
         public bool IsStructuralVariant { get; private set; }
-        public bool IsRefNoCall { get; internal set; }
+        public bool IsRefNoCall { get; set; }
         public bool IsRefMinor { get; private set; }
         public bool IsSingletonRefSite { get; private set; }
 

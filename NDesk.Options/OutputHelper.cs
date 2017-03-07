@@ -14,7 +14,7 @@ namespace NDesk.Options
 
         public static string GetExecutableName()
         {
-            return Path.GetFileName(Environment.GetCommandLineArgs()[0]);
+            return $"dotnet {Path.GetFileName(Environment.GetCommandLineArgs()[0])}";
         }
     }
 }

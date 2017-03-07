@@ -17,6 +17,8 @@ namespace VariantAnnotation.CommandLine
         private bool _showHelpMenu;
         private bool _showVersion;
 
+        private bool _disableOutput;
+
         private readonly OptionSet _commandLineOps;
         private readonly string _commandLineExample;
         private readonly string _programDescription;
@@ -52,6 +54,11 @@ namespace VariantAnnotation.CommandLine
 
             _errorBuilder = new StringBuilder();
             _errorSpacer  = new string(' ', 7);
+        }
+
+        protected void DisableConsoleOutput()
+        {
+            _disableOutput = true;
         }
 
         /// <summary>
@@ -267,7 +274,7 @@ namespace VariantAnnotation.CommandLine
                 }
                 else
                 {
-                    CommandLineUtilities.DisplayBanner(_programAuthors);
+                    if (!_disableOutput) CommandLineUtilities.DisplayBanner(_programAuthors);
 
                     if (_showHelpMenu)
                     {
@@ -301,7 +308,7 @@ namespace VariantAnnotation.CommandLine
             _peakMemoryUsageBytes = MemoryUtilities.GetPeakMemoryUsage();
             _wallTimeSpan         = bench.GetElapsedTime();
 
-            if (!_showVersion && !_showHelpMenu)
+            if (!_showVersion && !_showHelpMenu && !_disableOutput)
             {
                 Console.WriteLine();
                 if(_peakMemoryUsageBytes > 0) Console.WriteLine("Peak memory usage: {0}", MemoryUtilities.ToHumanReadable(_peakMemoryUsageBytes));
