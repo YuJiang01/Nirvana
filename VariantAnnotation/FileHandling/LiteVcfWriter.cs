@@ -175,5 +175,7 @@ namespace VariantAnnotation.FileHandling
         {
             _writer.WriteLine(_conversion.Convert(vcfVariant, annotatedVariant));
         }
+
+        public void Write(string s) => _writer.WriteLine(s);
     }
 }
